@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35303.130
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ParityAnalyser", "ParityAnalyser.csproj", "{C0C70CDA-A88F-45C4-BE3E-FB4427A68356}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C0C70CDA-A88F-45C4-BE3E-FB4427A68356}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C0C70CDA-A88F-45C4-BE3E-FB4427A68356}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C0C70CDA-A88F-45C4-BE3E-FB4427A68356}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C0C70CDA-A88F-45C4-BE3E-FB4427A68356}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7F2C18D9-9407-48DD-9EB2-49F2BDB0B147}
+	EndGlobalSection
+EndGlobal
