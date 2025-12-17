@@ -136,7 +136,10 @@ namespace ParityAnalyser
         {
             foreach (SaberSnapshot snap in parities)
             {
-                outline.AddToCache(snap.note, snap.reset ? Color.yellow : (snap.parity == Parity.FOREHAND ? Color.green : Color.red));
+                if ((snap.note.Type != (int)NoteType.Bomb) || (snap.note.Type == (int)NoteType.Bomb && snap.reset))
+                {
+                    outline.AddToCache(snap.note, snap.reset ? Color.yellow : snap.parity == Parity.FOREHAND ? Color.green : Color.red);   
+                }
                 GameObject renderer = new GameObject("line renderer");
 
                 
@@ -144,9 +147,21 @@ namespace ParityAnalyser
                 LineRenderer lr = renderer.AddComponent<LineRenderer>();
                 lr.positionCount = 2;
                 lr.SetPositions([snap.hilt + snap.note.Offset(), snap.tip + snap.note.Offset()]);
-                lr.startColor = lr.endColor = handColor;
+                Gradient g = new Gradient();
+                g.SetKeys(
+                    new[] {
+                        new GradientColorKey(Color.black, 0f),
+                        new GradientColorKey(handColor, 1f)
+                                    },
+                                    new[] {
+                        new GradientAlphaKey(1f, 1f),
+                        new GradientAlphaKey(1f, 1f)
+                                    }
+                                );
+
+                lr.colorGradient = g;
                 lr.startWidth = lr.endWidth = 0.05f;
-                lr.material = new Material(Shader.Find("Unlit/Color"));
+                lr.material = new Material(Shader.Find("Sprites/Default"));
                 lr.material.color = handColor;
                 atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() => lr.SetPositions([snap.hilt + snap.note.Offset(), snap.tip + snap.note.Offset()])));
             }

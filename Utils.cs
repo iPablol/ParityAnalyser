@@ -93,20 +93,9 @@ namespace ParityAnalyser
         //    _ => 0
         //};
 
-        public static Vector3 Offset(this BaseNote note) => new Vector3(-1.5f, -1.1f, (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale);
+        public static Vector3 Offset(this BaseNote note) => new Vector3(-1.5f, 0f, (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale);
 
-        public enum NoteDirection
-        {
-            UP = 0,
-            DOWN = 1,
-            LEFT = 2,
-            RIGHT = 3,
-            UP_LEFT = 4,
-            UP_RIGHT = 5,
-            DOWN_LEFT = 6,
-            DOWN_RIGHT = 7,
-            ANY = 8
-        }
+        
 
 
         public static Vector2 Direction(this NoteDirection dir) => dir switch
@@ -213,5 +202,17 @@ namespace ParityAnalyser
                 NoteDirection.ANY
             }
         };
+    }
+    public enum NoteDirection
+    {
+        UP = 0,
+        DOWN = 1,
+        LEFT = 2,
+        RIGHT = 3,
+        UP_LEFT = 4,
+        UP_RIGHT = 5,
+        DOWN_LEFT = 6,
+        DOWN_RIGHT = 7,
+        ANY = 8
     }
 }

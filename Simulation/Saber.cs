@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 using Parity = ParityAnalyser.ParityAnalyser.Parity;
-using CutDir = ParityAnalyser.Utils.NoteDirection;
+using CutDir = ParityAnalyser.NoteDirection;
 using Beatmap.Base;
 using Beatmap.Enums;
 using Unity.Collections;
@@ -23,6 +23,7 @@ namespace ParityAnalyser.Sim
             this.transform.rotation = Quaternion.identity;
             this.parity = start;
             this.notes = relevantNotes;
+            this.wristAngle = 0;
         }
         private GameObject dummyObject = new GameObject("saber dummy object");
         protected Transform transform => dummyObject.transform;
@@ -44,15 +45,45 @@ namespace ParityAnalyser.Sim
             else
             {
                 this.parity = this.parity.Other();
+                RotateTowards(nextNote);
             }
-            return new(nextNote, this.transform, this.parity, hasReset); 
+            if (hasReset)
+            {
+                RotateTowards(nextNote); // In theory this should'n trigger a reset a second time
+            }
+            return new(nextNote, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
         }
+
         public virtual void Reset(BaseNote culprit, Parity parity) 
         { 
             Debug.Log("Reset at beat " + culprit.JsonTime);
             hasReset = true;
-            this.parity = parity; 
+            this.parity = parity;
+            this.transform.rotation = Quaternion.identity;
+            transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 180f : 0f, Vector3.right);
+            this.wristAngle = 0;
         }
+
+        protected virtual void RotateTowards(BaseNote note)
+        {
+            float desiredAngle = DesiredAngle((NoteDirection)note.CutDirection);
+            float roll = desiredAngle - wristAngle;
+            if (roll < maxClockwiseAngle || roll > maxCCAngle)
+            {
+                Reset(note, this.parity.Other());
+                return;
+            }
+            this.wristAngle = desiredAngle;
+            transform.rotation = Quaternion.AngleAxis(wristAngle, Vector3.forward);
+            transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 180f : 0f, Vector3.right);
+
+            transform.position = new Vector3(note.PosX, note.PosY, transform.position.z);
+            
+        }
+        protected abstract float maxClockwiseAngle { get; }
+        protected abstract float maxCCAngle { get; }
+
+        public float wristAngle { get; protected set; }
 
         public static readonly float length = 1.5f;
         public Vector3 hilt => this.transform.position;
@@ -62,5 +93,7 @@ namespace ParityAnalyser.Sim
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(this.notes, true);
 
         public static implicit operator List<BaseNote>(Saber saber) => saber.notes;
+
+        protected abstract float DesiredAngle(CutDir dir);
     }
 }

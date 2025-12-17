@@ -34,7 +34,9 @@ namespace ParityAnalyser.Sim
 
             foreach (BaseNote note in this.rightSaber)
             {
-                blueParities.Add(this.rightSaber.Swing(note));
+                SaberSnapshot snap = this.rightSaber.Swing(note);
+                blueParities.Add(snap);
+                Debug.Log(snap);
             }
         }
 
@@ -46,9 +48,11 @@ namespace ParityAnalyser.Sim
 
         
     }
-    public record struct SaberSnapshot(BaseNote note, Transform transform, Parity parity, bool reset = false)
+    public record struct SaberSnapshot(BaseNote note, Vector3 position, Quaternion rotation, Parity parity, float wristAngle, bool reset = false)
     {
-        public Vector3 hilt => transform.position;
-        public Vector3 tip => transform.position + (Saber.length * transform.up);
+        public Vector3 hilt => position;
+        public Vector3 tip => position + (Saber.length * (rotation * Vector3.up));
+
+        public override string ToString() => $"Beat: {note.JsonTime}, CutDir: {note.CutDirection}, Position: {position}, Rotation: {rotation.eulerAngles}, Wrist Angle: {wristAngle}, Parity: {parity.ToString()}{(reset ? ", Reset" : "")}";
     }
 }
