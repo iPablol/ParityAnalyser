@@ -45,7 +45,7 @@ namespace ParityAnalyser
 				{
 					Beat = note.JsonTime,
 					PosX = note.PosX,
-					PosY = note.PosY,
+					PosY = note.PosY,     
 					Color = note.Color,
 				};
 				SetOutlineColor(spawned);

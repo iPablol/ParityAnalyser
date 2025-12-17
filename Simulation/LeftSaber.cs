@@ -27,16 +27,6 @@ namespace ParityAnalyser.Sim
             base.Reset(culprit, parity);
         }
 
-        public override SaberSnapshot Swing(BaseNote nextNote)
-        {
-
-            return base.Swing(nextNote);
-        }
-
-        protected override void RotateTowards(BaseNote note)
-        {
-            base.RotateTowards(note);
-        }
 
         protected override float DesiredAngle(NoteDirection dir) => this.parity switch
         {

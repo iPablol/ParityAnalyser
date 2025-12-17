@@ -12,6 +12,7 @@ namespace ParityAnalyser.Sim
 {
     public class Simulation
     {
+        public static readonly float bombRadius = 0.9f;
         public Simulation(List<BaseNote> objects)
         {
             // TODO: Check starting parity
@@ -27,18 +28,36 @@ namespace ParityAnalyser.Sim
 
         public void Run()
         {
-            foreach (BaseNote note in this.leftSaber)
+            // Might be better to do both hands at the same time for resets with both hands
+            SaberSnapshot? firstL = this.leftSaber.FirstSwing();
+            if (firstL != null)
             {
-                redParities.Add(this.leftSaber.Swing(note));
+                redParities.Add(firstL.Value);
+            }
+            foreach ((BaseNote note1, BaseNote note2) in this.leftSaber.GetPairs())
+            {
+                SaberSnapshot? snapshot = this.leftSaber.Swing(note1, note2);
+                if (snapshot != null)
+                {
+				    redParities.Add(snapshot.Value);
+                }
             }
 
-            foreach (BaseNote note in this.rightSaber)
-            {
-                SaberSnapshot snap = this.rightSaber.Swing(note);
-                blueParities.Add(snap);
-                Debug.Log(snap);
-            }
-        }
+			SaberSnapshot? firstR = this.rightSaber.FirstSwing();
+			if (firstR != null)
+			{
+				blueParities.Add(firstR.Value);
+			}
+			foreach ((BaseNote note1, BaseNote note2) in this.rightSaber.GetPairs())
+			{
+				SaberSnapshot? snapshot = this.rightSaber.Swing(note1, note2);
+				if (snapshot != null)
+				{
+					blueParities.Add(snapshot.Value);
+                    Debug.Log(snapshot);
+				}
+			}
+		}
 
         private RightSaber rightSaber;
         private LeftSaber leftSaber;

@@ -31,25 +31,34 @@ namespace ParityAnalyser.Sim
 
         private bool hasReset = false;
 
-        public virtual SaberSnapshot Swing(BaseNote nextNote) 
+        public virtual SaberSnapshot? FirstSwing() => this.Swing(null, notes.First());
+
+        public virtual SaberSnapshot? Swing(BaseNote previousNote, BaseNote nextNote) 
         {
-            hasReset = false;
+			//if (previousNote != null && Utils.IsStackOrSlider(previousNote, nextNote))
+			//{
+			//    return null;
+			//}
+
+			hasReset = false;
             if (nextNote.Type == (int)NoteType.Bomb)
             {
-                if (Intersections.Raycast(new Ray(hilt + nextNote.Offset(), transform.up + nextNote.Offset()), out Hit hit, out float distance) && distance <= length && hit.GameObject.GetComponentInParent<BaseNote>().Type == (int)NoteType.Bomb)
-                {
-
+                if (Collision.SegmentIntersectsCircle(hilt, tip, new Vector2(nextNote.PosX, nextNote.PosY), Simulation.bombRadius))
+                { 
                     Reset(nextNote, this.parity.Other());
                 }
             }
             else
             {
-                this.parity = this.parity.Other();
-                RotateTowards(nextNote);
+                if (previousNote == null || !Utils.IsStackOrSlider(previousNote, nextNote))
+                {
+                    this.parity = this.parity.Other();
+                }
+                RotateTowards(previousNote, nextNote);
             }
             if (hasReset)
             {
-                RotateTowards(nextNote); // In theory this should'n trigger a reset a second time
+                RotateTowards(previousNote, nextNote); // In theory this shouldn't trigger a reset a second time
             }
             return new(nextNote, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
         }
@@ -64,11 +73,24 @@ namespace ParityAnalyser.Sim
             this.wristAngle = 0;
         }
 
-        protected virtual void RotateTowards(BaseNote note)
+        protected virtual void RotateTowards(BaseNote previousNote, BaseNote note)
         {
             float desiredAngle = DesiredAngle((NoteDirection)note.CutDirection);
+            if (previousNote != null)
+            {
+                if (note.CutDirection == (int)CutDir.ANY /*&& previousNote.CutDirection != (int)CutDir.ANY*/)
+                {
+                    desiredAngle = (float)(Math.Atan2(note.PosX - previousNote.PosX, -(note.PosY - previousNote.PosY)) * 180.0 / Math.PI);
+                    desiredAngle = Utils.ClosestToZero(desiredAngle, desiredAngle - 180);
+                    
+				}
+                //else if (note.CutDirection == (int)CutDir.ANY && previousNote.CutDirection == (int)CutDir.ANY)
+                //{
+                //     if (Utils.IsStackOrSlider(previousNote, note)) { return; }
+                //}
+            }
             float roll = desiredAngle - wristAngle;
-            if (roll < maxClockwiseAngle || roll > maxCCAngle)
+            if (roll < -270 || roll > 270)
             {
                 Reset(note, this.parity.Other());
                 return;
@@ -77,20 +99,24 @@ namespace ParityAnalyser.Sim
             transform.rotation = Quaternion.AngleAxis(wristAngle, Vector3.forward);
             transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 180f : 0f, Vector3.right);
 
-            transform.position = new Vector3(note.PosX, note.PosY, transform.position.z);
+            transform.position = new Vector3(note.PosX, note.PosY, transform.position.z) - offset;
             
         }
+
+        private Vector3 offset => transform.up * CutDistance;
+        public static readonly float CutDistance = 1f;
+
         protected abstract float maxClockwiseAngle { get; }
         protected abstract float maxCCAngle { get; }
 
         public float wristAngle { get; protected set; }
 
-        public static readonly float length = 1.5f;
+        public static readonly float length = 2.1f;
         public Vector3 hilt => this.transform.position;
         public Vector3 tip => this.transform.position + (length * transform.up);
 
         public IEnumerator<BaseNote> GetEnumerator() => this.notes.GetEnumerator();
-        public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(this.notes, true);
+        public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(this.notes, false);
 
         public static implicit operator List<BaseNote>(Saber saber) => saber.notes;
 

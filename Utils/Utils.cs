@@ -1,6 +1,8 @@
 ﻿using Beatmap.Base;
+using Beatmap.Enums;
 using ParityAnalyser.Sim;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -41,9 +43,56 @@ namespace ParityAnalyser
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
-    internal static class Utils
+
+	public class SimulationIterator : IEnumerable<(object, object)> 
+	{
+		private readonly List<object> _list;
+		public bool includeSingle
+		{
+			get; private set;
+		}
+
+		public SimulationIterator(List<object> list, bool includeSingle = false)
+		{
+			_list = list;
+			this.includeSingle = includeSingle;
+		}
+
+		public IEnumerator<(object, object)> GetEnumerator()
+		{
+			for (int i = 1; i < _list.Count; i++)
+			{
+                object next = _list[i];
+                if (next is BaseNote note && note.Type == (int)NoteType.Bomb)
+                {
+                    next = GroupBombs(i);
+                    i += (next as IEnumerable<object>).Count() - 1;
+                }
+				yield return (_list[i - 1], next);
+			}
+			if (includeSingle)
+			{
+				yield return (_list.Last(), _list.First());
+			}
+		}
+
+        public IEnumerable<object> GroupBombs(int startIndex)
+        {
+            int i = startIndex;
+            while (_list[i] is BaseNote note && note.Type == (int)NoteType.Bomb)
+            {
+                yield return _list[i++];
+            }
+        }
+
+		System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+	}
+	internal static class Utils
     {
 
+        public static float ClosestToZero(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
+        public static float sliderThreshold = 1 / 11.5f; // Thanks yabje for those 1/12 sliders
+        public static bool IsStackOrSlider(BaseNote note1, BaseNote note2) => Math.Abs(note2.JsonTime -  note1.JsonTime) <= sliderThreshold;
         public static bool Bool(this Parity parity) => parity == Parity.FOREHAND;
         public static Parity ToParity(this bool b) => b ? Parity.FOREHAND : Parity.BACKHAND;
         public static Parity Other(this Parity parity) => (!parity.Bool()).ToParity();
@@ -93,7 +142,7 @@ namespace ParityAnalyser
         //    _ => 0
         //};
 
-        public static Vector3 Offset(this BaseNote note) => new Vector3(-1.5f, 0f, (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale);
+        public static Vector3 Offset(this BaseNote note) => new Vector3(-1.5f, 0.5f, (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale);
 
         
 
