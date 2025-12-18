@@ -71,6 +71,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Simulation\BombGroup.cs" />
     <Compile Include="Simulation\LeftSaber.cs" />
     <Compile Include="Simulation\RightSaber.cs" />
     <Compile Include="Simulation\Saber.cs" />
@@ -80,6 +81,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UI\UI.cs" />
     <Compile Include="Utils\Collision.cs" />
+    <Compile Include="Utils\Interpolation.cs" />
+    <Compile Include="Utils\Notes.cs" />
     <Compile Include="Utils\RunningStats.cs" />
     <Compile Include="Utils\Utils.cs" />
   </ItemGroup>

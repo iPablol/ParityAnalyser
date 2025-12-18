@@ -21,10 +21,6 @@ namespace ParityAnalyser.Sim
 
         protected override float maxCCAngle => 135f;
 
-        public override void Reset(BaseNote culprit, Parity parity)
-        {
-            base.Reset(culprit, parity);
-        }
 
 
         protected override float DesiredAngle(NoteDirection dir) => this.parity switch

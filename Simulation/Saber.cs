@@ -12,6 +12,8 @@ using Beatmap.Enums;
 using Unity.Collections;
 
 using Hit = Intersections.IntersectionHit;
+using BombCondition = System.Func<Beatmap.Base.BaseNote, bool>;
+using static Beatmap.V4.V4CommonData;
 
 namespace ParityAnalyser.Sim
 {
@@ -33,39 +35,43 @@ namespace ParityAnalyser.Sim
 
         public virtual SaberSnapshot? FirstSwing() => this.Swing(null, notes.First());
 
+        private int bombGroupIndex = 0;
+
         public virtual SaberSnapshot? Swing(BaseNote previousNote, BaseNote nextNote) 
         {
-			//if (previousNote != null && Utils.IsStackOrSlider(previousNote, nextNote))
-			//{
-			//    return null;
-			//}
 
 			hasReset = false;
-            if (nextNote.Type == (int)NoteType.Bomb)
+            //if (nextNote.Type == (int)NoteType.Bomb)
+            //{
+            //    if (Collision.SegmentIntersectsCircle(hilt, tip, new Vector2(nextNote.PosX, nextNote.PosY), Simulation.bombRadius))
+            //    { 
+            //        Reset(nextNote, this.parity.Other());
+            //    }
+            //}
+            if (previousNote == null || !Utils.IsStackOrSlider(previousNote, nextNote))
             {
-                if (Collision.SegmentIntersectsCircle(hilt, tip, new Vector2(nextNote.PosX, nextNote.PosY), Simulation.bombRadius))
-                { 
-                    Reset(nextNote, this.parity.Other());
-                }
+                this.parity = this.parity.Other();
             }
-            else
+            
+            if (bombGroupIndex < bombGroups.Count && previousNote == bombGroups[bombGroupIndex].startNote)
             {
-                if (previousNote == null || !Utils.IsStackOrSlider(previousNote, nextNote))
-                {
-                    this.parity = this.parity.Other();
-                }
-                RotateTowards(previousNote, nextNote);
+                // Reached next bomb group
+                HandleBombGroup();
             }
             if (hasReset)
             {
-                RotateTowards(previousNote, nextNote); // In theory this shouldn't trigger a reset a second time
+                RotateTowards(previousNote, nextNote);
+            }
+            else
+            {
+                RotateTowards(previousNote, nextNote);
             }
             return new(nextNote, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
         }
 
-        public virtual void Reset(BaseNote culprit, Parity parity) 
+        public virtual void Reset(BaseNote culprit, Parity parity, string reason) 
         { 
-            Debug.Log("Reset at beat " + culprit.JsonTime);
+            Debug.Log($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
             hasReset = true;
             this.parity = parity;
             this.transform.rotation = Quaternion.identity;
@@ -75,33 +81,164 @@ namespace ParityAnalyser.Sim
 
         protected virtual void RotateTowards(BaseNote previousNote, BaseNote note)
         {
-            float desiredAngle = DesiredAngle((NoteDirection)note.CutDirection);
-            if (previousNote != null)
+            float desiredAngle = CutAngle(previousNote, note);
+            float roll = desiredAngle - wristAngle;
+            if (roll < -270 || roll > 270)
             {
-                if (note.CutDirection == (int)CutDir.ANY /*&& previousNote.CutDirection != (int)CutDir.ANY*/)
+                Reset(note, this.parity.Other(), "Wristroll too large");
+                return;
+            }
+            this.wristAngle = desiredAngle;
+            transform.rotation = Quaternion.AngleAxis(wristAngle, Vector3.forward);
+            transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? -180f : 0f, Vector3.right);
+
+            transform.position = new Vector3(note.PosX, note.PosY, transform.position.z) - offset;
+            
+        }
+
+        protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote)
+        {
+            float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
+            if (prevNote != null)
+            {
+                if (nextNote.CutDirection == (int)CutDir.ANY /*&& previousNote.CutDirection != (int)CutDir.ANY*/)
                 {
-                    desiredAngle = (float)(Math.Atan2(note.PosX - previousNote.PosX, -(note.PosY - previousNote.PosY)) * 180.0 / Math.PI);
+                    desiredAngle = (float)(Math.Atan2(nextNote.PosX - prevNote.PosX, - (nextNote.PosY - prevNote.PosY)) * 180.0 / Math.PI);
                     desiredAngle = Utils.ClosestToZero(desiredAngle, desiredAngle - 180);
-                    
-				}
+
+                }
                 //else if (note.CutDirection == (int)CutDir.ANY && previousNote.CutDirection == (int)CutDir.ANY)
                 //{
                 //     if (Utils.IsStackOrSlider(previousNote, note)) { return; }
                 //}
             }
-            float roll = desiredAngle - wristAngle;
-            if (roll < -270 || roll > 270)
+            return desiredAngle;
+        }
+
+        protected virtual float WristRoll(BaseNote prevNote, BaseNote nextNote) => CutAngle(prevNote, nextNote) - wristAngle;
+
+        private void HandleBombGroup()
+        {
+            BombGroup group = bombGroups[bombGroupIndex++];
+
+            if (group.endNote == null)
             {
-                Reset(note, this.parity.Other());
+                // Map ends with bombs
                 return;
             }
-            this.wristAngle = desiredAngle;
-            transform.rotation = Quaternion.AngleAxis(wristAngle, Vector3.forward);
-            transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 180f : 0f, Vector3.right);
 
-            transform.position = new Vector3(note.PosX, note.PosY, transform.position.z) - offset;
+            float roll = WristRoll(group.startNote, group.endNote);
+
+            bool saberCollides = group.Any((note) => Collision.SegmentIntersectsCircle(hilt, tip, note.Position(), Simulation.bombRadius));
+            //TODO: Check swing path collision (wrist angle sector collides with bomb)
+            //if (!saberCollides)
+            //{
+            //    return;
+            //}
+            List<BombCondition> bottomRowReset = [
+                (note) => note.LeftOuterLane() && note.BottomRow(),
+                (note) => note.LeftInnerLane() && note.BottomRow(),
+                (note) => note.RightInnerLane() && note.BottomRow(),
+                (note) => note.RightOuterLane() && note.BottomRow(),
+                ];
+
+
+            bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f;
+            bool shouldResetDueToInline = group.endNote.BottomRow();
+            bool shouldResetDueToRoll = roll >= 180f;
+
             
+            //Debug.Log($"Beat: {group.startNote.JsonTime}, angle: {wristAngle}, roll: {roll}, condition: {Mathf.Abs(wristAngle + roll)}, desired: {DesiredAngle((CutDir)group.endNote.CutDirection)}");
+            if (parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 45f && group.AllConditions(bottomRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            {
+                //TODO: try to move out of the way
+                Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
+                return;
+            }
+
+            List<BombCondition> topRowReset = [
+                (note) => note.LeftOuterLane() && note.TopRow(),
+                (note) => note.LeftInnerLane() && note.TopRow(),
+                (note) => note.RightInnerLane() && note.TopRow(),
+                (note) => note.RightOuterLane() && note.TopRow(),
+                ];
+
+            shouldResetDueToInline = group.endNote.TopRow();
+            if (parity == Parity.FOREHAND && Mathf.Abs(wristAngle) >= 135f && group.AllConditions(topRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            {
+                //TODO: try to move out of the way
+                Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
+                return;
+            }
+
+            // Spiral reset
+            if (group.AllConditions(topRowReset) && group.AllConditions(bottomRowReset))
+            {
+                bool isBottomRow = (from bomb in @group.Where(note => note.TopRow() || note.BottomRow())
+                                    orderby bomb.JsonTime descending
+                                    select bomb).Last().BottomRow();
+                if (isBottomRow) Reset(group.bombs[0], Parity.FOREHAND, "Bottom row spiral reset"); else Reset(group.bombs[0], Parity.BACKHAND, "Top row spiral reset");
+            }
+
+            // Quick bomb reset
+            float quickBombThreshold = 1 / 4f;
+            IEnumerable<BaseNote> inlineBombs = group.Where(bomb => bomb.PosX == group.startNote.PosX && bomb.PosY == group.startNote.PosY);
+            if (inlineBombs.Count() > 0)
+            {
+                bool quickInlineBomb = inlineBombs.OrderByDescending(bomb => bomb.JsonTime).Last().JsonTime - group.startNote.JsonTime < quickBombThreshold;
+
+                if (quickInlineBomb)
+                {
+                    Reset(group.bombs[0], parity, "Inline bomb");
+                }
+            }
+
+            // TODO: reset when the only resting position available is covered by bombs, all other slots are walls
+
         }
+
+        public virtual void ExtractBombGroups()
+        {
+            bool firstNoteHappened = false;
+            for (int i = 0; i < notes.Count; i++)
+            {
+                if (notes[i].Type != (int)NoteType.Bomb) firstNoteHappened = true;
+                if (firstNoteHappened && notes[i].Type == (int)NoteType.Bomb)
+                {
+                    BaseNote start = notes[i - 1];
+                    List<BaseNote> bombs = [];
+                    while (notes[i].Type == (int)(NoteType.Bomb))
+                    {
+                        bombs.Add(notes[i++]);
+                        if (i == notes.Count - 1)
+                        {
+                            bombGroups.Add(new(start, bombs, null));
+                            goto Finish;
+                        }
+                    }
+                    bombGroups.Add(new (start, bombs, notes[i]));
+                }
+            }
+            Finish:
+            notes = notes.Where(note => note.Type != (int)NoteType.Bomb).ToList();
+
+        }
+
+        public void RenderBombGroups(bool renderStart = false, bool renderEnd = false)
+        {
+            foreach (BombGroup group in bombGroups)
+            {
+                Color groupColor = Utils.RandomColor();
+                if (renderStart) ParityAnalyser.outline.AddToCache(group.startNote, groupColor);
+                foreach (BaseNote bomb in group.bombs)
+                {
+                    ParityAnalyser.outline.AddToCache(bomb, groupColor);
+                }
+                if (renderEnd) ParityAnalyser.outline.AddToCache(group.endNote, groupColor);
+            }
+        }
+
+        public List<BombGroup> bombGroups { get; private set; } = [];
 
         private Vector3 offset => transform.up * CutDistance;
         public static readonly float CutDistance = 1f;

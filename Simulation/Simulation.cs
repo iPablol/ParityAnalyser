@@ -28,6 +28,11 @@ namespace ParityAnalyser.Sim
 
         public void Run()
         {
+            this.leftSaber.ExtractBombGroups();
+            this.rightSaber.ExtractBombGroups();
+
+            //leftSaber.RenderBombGroups();
+            rightSaber.RenderBombGroups();
             // Might be better to do both hands at the same time for resets with both hands
             SaberSnapshot? firstL = this.leftSaber.FirstSwing();
             if (firstL != null)
@@ -40,6 +45,7 @@ namespace ParityAnalyser.Sim
                 if (snapshot != null)
                 {
 				    redParities.Add(snapshot.Value);
+                    //Debug.Log(snapshot);
                 }
             }
 
@@ -54,7 +60,6 @@ namespace ParityAnalyser.Sim
 				if (snapshot != null)
 				{
 					blueParities.Add(snapshot.Value);
-                    Debug.Log(snapshot);
 				}
 			}
 		}
@@ -71,6 +76,8 @@ namespace ParityAnalyser.Sim
     {
         public Vector3 hilt => position;
         public Vector3 tip => position + (Saber.length * (rotation * Vector3.up));
+
+        public float beat => note.JsonTime;
 
         public override string ToString() => $"Beat: {note.JsonTime}, CutDir: {note.CutDirection}, Position: {position}, Rotation: {rotation.eulerAngles}, Wrist Angle: {wristAngle}, Parity: {parity.ToString()}{(reset ? ", Reset" : "")}";
     }
