@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using static Beatmap.V4.V4CommonData;
 
 namespace ParityAnalyser
 {
@@ -14,6 +15,9 @@ namespace ParityAnalyser
         {
             return CutDirFromVector(new Vector2((float)lastNote.PosX, (float)lastNote.PosY) - new Vector2((float)firstNote.PosX, (float)firstNote.PosY));
         }
+
+        public static Vector3 Offset(this BaseNote note) => new Vector3(-1.5f, 0.5f, note.zPos());
+        public static float zPos(this BaseNote note) => (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale;
 
         public static Vector2 Position(this BaseNote note) => new Vector2(note.PosX, note.PosY);
 

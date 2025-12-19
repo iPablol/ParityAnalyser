@@ -28,7 +28,7 @@ namespace ParityAnalyser
         internal ArcGridContainer arcGrid;
 
         internal TracksManager tracksManager;
-        internal AudioTimeSyncController atc;
+        internal static AudioTimeSyncController atc;
 
         internal static Outline outline;
 
@@ -62,10 +62,10 @@ namespace ParityAnalyser
             Simulation sim = new Simulation(noteGrid.MapObjects.Where(x => x is BaseNote).ToList());
             sim.Run();
 
-            RenderParities(sim.redParities, Color.red, true, false);
-            RenderParities(sim.blueParities, Color.blue, true, false);
-            AnimateParities(sim.blueParities, Color.blue);
-            AnimateParities(sim.redParities, Color.red);
+            RenderParities(sim.redParities, Color.red, true, true);
+            RenderParities(sim.blueParities, Color.blue, true, true);
+            //AnimateParities(sim.blueParities, Color.blue);
+            //AnimateParities(sim.redParities, Color.red);
         }
 
         //      public void Analyse()
@@ -199,7 +199,7 @@ namespace ParityAnalyser
                 if ((snap.note.Type != (int)NoteType.Bomb) || (snap.note.Type == (int)NoteType.Bomb && snap.reset))
                 {
                     if (renderOutlines)
-                        outline.AddToCache(snap.note, snap.reset ? Color.yellow : snap.parity == Parity.FOREHAND ? Color.white : Color.black);
+                        outline.AddToCache(snap.note, snap.parity == Parity.FOREHAND ? Color.white : Color.black);
                 }
                 if (renderSabers)
                 {

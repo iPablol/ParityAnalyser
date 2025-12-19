@@ -70,7 +70,8 @@ namespace ParityAnalyser.Sim
         }
 
         public virtual void Reset(BaseNote culprit, Parity parity, string reason) 
-        { 
+        {
+            ParityAnalyser.outline.AddToCache(culprit, Color.yellow);
             Debug.Log($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
             hasReset = true;
             this.parity = parity;
@@ -130,7 +131,8 @@ namespace ParityAnalyser.Sim
             float roll = WristRoll(group.startNote, group.endNote);
 
             bool saberCollides = group.Any((note) => Collision.SegmentIntersectsCircle(hilt, tip, note.Position(), Simulation.bombRadius));
-            //TODO: Check swing path collision (wrist angle sector collides with bomb)
+            
+           
             //if (!saberCollides)
             //{
             //    return;
@@ -164,7 +166,7 @@ namespace ParityAnalyser.Sim
                 ];
 
             shouldResetDueToInline = group.endNote.TopRow();
-            if (parity == Parity.FOREHAND && Mathf.Abs(wristAngle) >= 135f && group.AllConditions(topRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            if (parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 45f && group.AllConditions(topRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
             {
                 //TODO: try to move out of the way
                 Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
@@ -172,12 +174,23 @@ namespace ParityAnalyser.Sim
             }
 
             // Spiral reset
+            // TODO: Distinguish from bomb spam (example: MARENOL), detect spirals with missing bombs (example: meowter space
             if (group.AllConditions(topRowReset) && group.AllConditions(bottomRowReset))
             {
                 bool isBottomRow = (from bomb in @group.Where(note => note.TopRow() || note.BottomRow())
                                     orderby bomb.JsonTime descending
                                     select bomb).Last().BottomRow();
-                if (isBottomRow) Reset(group.bombs[0], Parity.FOREHAND, "Bottom row spiral reset"); else Reset(group.bombs[0], Parity.BACKHAND, "Top row spiral reset");
+                if (isBottomRow)
+                {
+                    Reset(group.bombs[0], Parity.FOREHAND, "Bottom row spiral reset");
+                    return;
+                }
+                else
+                {
+                    Reset(group.bombs[0], Parity.BACKHAND, "Top row spiral reset");
+                    return;
+                }
+
             }
 
             // Quick bomb reset
@@ -190,8 +203,44 @@ namespace ParityAnalyser.Sim
                 if (quickInlineBomb)
                 {
                     Reset(group.bombs[0], parity, "Inline bomb");
+                    return;
                 }
             }
+
+            foreach ((BaseNote bomb1, BaseNote bomb2) in group.GetPairs())
+            {
+                float swingOffset = parity.Bool() ? 180f : 0f;
+                float startAngle = wristAngle + swingOffset;
+                float endAngle = wristAngle + roll + swingOffset;
+                float lerpFactor = (group.endNote.JsonTime - group.startNote.JsonTime);
+
+                float bomb1LerpAmount = (bomb1.JsonTime - group.startNote.JsonTime) / lerpFactor;
+                float bomb2LerpAmount = (bomb2.JsonTime - group.startNote.JsonTime) / lerpFactor;
+
+                bool isCenter = bomb1.MiddleRow() && (bomb1.LeftInnerLane() || bomb1.RightInnerLane());
+                float distanceToBomb = (new Vector2(hilt.x, hilt.y) - bomb1.Position()).magnitude;
+
+                Vector2 hiltPos = new Vector2(hilt.x, hilt.y);
+                
+                Vector3 zOff = new Vector3(0, 0, bomb1.zPos());
+                Vector2 center = new Vector2(1.5f, 1f);
+                //Utils.RenderLine((Vector3)hiltPos + zOff, (Vector3)center + zOff, Color.magenta, Color.magenta, 0.3f);
+                Vector2 directionToCenter = (center - hiltPos).normalized * (isCenter ? -1f : 1f);
+                float movementScale = 15f;
+                float timeScaleFactor = (bomb2.JsonTime - bomb1.JsonTime);
+                float bombDistanceScaleFactor = (1 / Mathf.Pow(Vector2.Distance(hiltPos, bomb1.Position()), 2));
+                this.transform.position += (Vector3)(movementScale * directionToCenter * timeScaleFactor * bombDistanceScaleFactor);
+                Utils.RenderLine((Vector3)hiltPos + zOff, transform.position + zOff, Color.yellow, Color.black);
+
+                bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), bomb1.Position(), true, bomb1.zPos());
+
+                if (swingPathCollides)
+                {
+                    Reset(bomb1, parity.Other(), "Swing path");
+                    return;
+                }
+            }
+
 
             // TODO: reset when the only resting position available is covered by bombs, all other slots are walls
 
@@ -209,12 +258,13 @@ namespace ParityAnalyser.Sim
                     List<BaseNote> bombs = [];
                     while (notes[i].Type == (int)(NoteType.Bomb))
                     {
-                        bombs.Add(notes[i++]);
+                        bombs.Add(notes[i]);
                         if (i == notes.Count - 1)
                         {
                             bombGroups.Add(new(start, bombs, null));
                             goto Finish;
                         }
+                        i++;
                     }
                     bombGroups.Add(new (start, bombs, notes[i]));
                 }

@@ -108,19 +108,74 @@ namespace ParityAnalyser
         public static Parity ToParity(this bool b) => b ? Parity.FOREHAND : Parity.BACKHAND;
         public static Parity Other(this Parity parity) => (!parity.Bool()).ToParity();
 
+        public static void RenderLine(Vector3 pos1, Vector3 pos2, Color colorStart, Color colorEnd, float width = 0.05f)
+        {
+            GameObject renderer = new GameObject("line");
+            LineRenderer lr = renderer.AddComponent<LineRenderer>();
+            lr.positionCount = 2;
 
+            Gradient g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(colorStart, 0f),
+                    new GradientColorKey(colorEnd, 1f)
+                },
+                new[]
+                {
+                    new GradientAlphaKey(1f, 1f),
+                    new GradientAlphaKey(1f, 1f)
+                }
+            );
+
+            lr.colorGradient = g;
+            lr.startWidth = lr.endWidth = width;
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+
+            var atc = ParityAnalyser.atc;
+            lr.SetPositions([pos1 + atc.CurrentJsonTime.Offset(), pos2 + atc.CurrentJsonTime.Offset()]);
+            atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
+            {
+                float time = atc.CurrentJsonTime;
+                lr.SetPositions([pos1 + time.Offset(), pos2 + time.Offset()]);
+
+            }));
+        }
+
+        public static void RenderSphere(Vector3 pos, float radius, Color color)
+        {
+            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.transform.localScale = Vector3.one * radius;
+
+            var renderer = sphere.GetComponent<MeshRenderer>();
+            renderer.material = new Material(Shader.Find("Unlit/Color"));
+            renderer.material.color = color;
+
+            var atc = ParityAnalyser.atc;
+            sphere.transform.position = pos + atc.CurrentJsonTime.Offset();
+            atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
+            {
+                float time = atc.CurrentJsonTime;
+                sphere.transform.position = pos + time.Offset();
+
+            }));
+
+        }
 
         public static float Cross(this Vector2 a, Vector2 b) => (a.x * b.y) - (a.y * b.x);
 
         
 
-        public static Vector3 Offset(this BaseNote note) => new Vector3(-1.5f, 0.5f, (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale);
         public static Vector3 Offset(this float time) => new Vector3(-1.5f, 0.5f, 0f);
 
-        
+
+        public static Vector2 DirectionFromDownAngle(float angleDeg)
+        {
+            float rad = (angleDeg - 90f) * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
+        }
 
 
-        
     }
     
 }

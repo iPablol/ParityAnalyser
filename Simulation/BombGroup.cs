@@ -25,6 +25,8 @@ namespace ParityAnalyser
         
         public IEnumerable<BaseNote> Where(BombCondition condition) => bombs.Where(condition);
 
+        public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.Append(endNote).ToList(), false);
+
         public bool AllConditions(List<BombCondition> conditions)
         {
             foreach (var condition in conditions)

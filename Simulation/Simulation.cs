@@ -12,7 +12,7 @@ namespace ParityAnalyser.Sim
 {
     public class Simulation
     {
-        public static readonly float bombRadius = 0.9f;
+        public static readonly float bombRadius = 0.75f;
         public Simulation(List<BaseNote> objects)
         {
             // TODO: Check starting parity
@@ -32,7 +32,7 @@ namespace ParityAnalyser.Sim
             this.rightSaber.ExtractBombGroups();
 
             //leftSaber.RenderBombGroups();
-            rightSaber.RenderBombGroups();
+            //rightSaber.RenderBombGroups();
             // Might be better to do both hands at the same time for resets with both hands
             SaberSnapshot? firstL = this.leftSaber.FirstSwing();
             if (firstL != null)
