@@ -197,15 +197,13 @@ namespace ParityAnalyser
         {
             foreach (SaberSnapshot snap in parities)
             {
-                if (snap.isBombGroup) continue;
                 if ((snap.note.Type != (int)NoteType.Bomb) || (snap.note.Type == (int)NoteType.Bomb && snap.reset))
                 {
                     if (renderOutlines)
                     {
-                        foreach (BaseNote note in snap.simObject.Notes())
-                        {
-                            outline.AddToCache(note, snap.parity == Parity.FOREHAND ? Color.white : Color.black);
-                        }
+
+                        outline.AddToCache(snap.note, snap.parity == Parity.FOREHAND ? Color.white : Color.black);
+                        
                     }
                 }
                 if (renderSabers)
@@ -276,14 +274,14 @@ namespace ParityAnalyser
             lr.SetPosition(i, center);
         }
 
-        public enum Parity
-        {
-            FOREHAND = -1,
-            BACKHAND = 1
-        }
 
 
         [Exit]
         private void Exit() { }
+    }
+    public enum Parity
+    {
+        FOREHAND = -1,
+        BACKHAND = 1
     }
 }

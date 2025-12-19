@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
-using Parity = ParityAnalyser.ParityAnalyser.Parity;
+using Parity = ParityAnalyser.Parity;
 using CutDir = ParityAnalyser.NoteDirection;
 using Beatmap.Base;
 using Beatmap.Enums;
@@ -14,6 +14,8 @@ using Unity.Collections;
 using Hit = Intersections.IntersectionHit;
 using BombCondition = System.Func<Beatmap.Base.BaseNote, bool>;
 using static Beatmap.V4.V4CommonData;
+using System.Collections;
+using System.Net;
 
 namespace ParityAnalyser.Sim
 {
@@ -26,11 +28,13 @@ namespace ParityAnalyser.Sim
             this.transform.rotation = Quaternion.identity;
             this.parity = start;
             
-            IEnumerable<ISimulationObject> notes = from note in relevantNotes
-                               where !note.IsBomb() select new Note(note);
             IEnumerable<ISimulationObject> bombGroups = ExtractBombGroups(relevantNotes);
 
             IEnumerable<ISimulationObject> sliderGroups = ExtractSliderGroups(relevantNotes);
+
+            IEnumerable<ISimulationObject> notes = from note in relevantNotes
+                               where !note.IsBomb() && !(sliderGroups.Cast<SliderGroup>().Any(slider => slider.Notes().Contains(note))) 
+                                                   select new Note(note);
 
             this.bombGroups = bombGroups.Cast<BombGroup>().ToList();
 
@@ -47,16 +51,16 @@ namespace ParityAnalyser.Sim
 
         public List<SaberSnapshot> resetSnapshots { get; protected set; } = [];
 
-        public virtual SaberSnapshot? FirstSwing() => this.Swing(null, notes.First());
+        public virtual List<SaberSnapshot> FirstSwing() => this.Swing(null, notes.First());
 
 
-        public virtual SaberSnapshot? Swing(ISimulationObject previousObject, ISimulationObject nextObject) 
+        public virtual List<SaberSnapshot> Swing(ISimulationObject previousObject, ISimulationObject nextObject) 
         {
-
 			hasReset = false;
-
+            
             this.parity = this.parity.Other();
 
+            List<SaberSnapshot> swing = [];
 
             if (nextObject is BombGroup group)
             {
@@ -64,13 +68,48 @@ namespace ParityAnalyser.Sim
             }
             else if (nextObject is SliderGroup slider)
             {
-
+                BaseNote firstNote = null, secondNote = null;
+                //Debug.Log($"Slider at: {nextObject.Time()} with {slider.noteCount} notes");
+                if (slider.isStack)
+                {
+                    if (slider.isDotStack)
+                    {
+                        slider.OrderFullDotStack(transform.position, wristAngle, parity);
+                    }
+                    else
+                    {
+                        slider.Order(slider.GetOrder(parity));
+                    }
+                }
+                for (int i = 0; i < slider.noteCount; i++)
+                {
+                    bool isLast = i == slider.noteCount - 1;
+                    if (isLast)
+                    {
+                        firstNote = slider.Notes().ElementAt(i - 1);
+                        secondNote = slider.Notes().ElementAt(i);
+                    }
+                    else
+                    {
+                        firstNote = slider.Notes().ElementAt(i);
+                        secondNote = slider.Notes().ElementAt(i + 1);
+                    }
+                    BaseNote nextNote = isLast ? secondNote : firstNote;
+                    float angle = CutAngle(firstNote, secondNote, true);
+                    if (angle == 180f && this is RightSaber)
+                    {
+                        angle = -180f;
+                    }
+                    MoveTowardsNote(angle, nextNote);
+                    swing.Add(new SaberSnapshot(nextNote, transform.position, transform.rotation, parity, wristAngle, hasReset));
+                }
             }
             else
             {
-                RotateTowards(previousObject, nextObject);
+                RotateTowards(previousObject, nextObject); 
+                swing.Add(new SaberSnapshot(nextObject.GetNote(), this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset));
             }
-            return new(nextObject, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
+            return swing;
         }
 
         public virtual void Reset(BaseNote culprit, Parity parity, string reason) 
@@ -94,49 +133,50 @@ namespace ParityAnalyser.Sim
             BaseNote previousNote = previousObject?.LastNote() ?? null;
             BaseNote nextNote = nextObject.GetNote();
             float desiredAngle = CutAngle(previousNote, nextNote);
-            float roll = desiredAngle - wristAngle;
+            MoveTowardsNote(desiredAngle, nextNote);
+
+        }
+
+        protected virtual void MoveTowardsNote(float angle, BaseNote nextNote)
+        {
+            float roll = angle - wristAngle;
             if (roll < -270 || roll > 270)
             {
                 Reset(nextNote, this.parity.Other(), "Wristroll too large");
                 return;
             }
-            this.wristAngle = desiredAngle;
+            this.wristAngle = angle;
             transform.rotation = Quaternion.AngleAxis(wristAngle, Vector3.forward);
             transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? -180f : 0f, Vector3.right);
-
+            
             if ((CutDir)nextNote.CutDirection != CutDir.ANY)
             {
-                MoveTo((Vector3)nextNote.Position() - offset);
+                MoveTo((Vector3)nextNote.Position() - cutOffset);
             }
             else
             {
                 MoveTo(nextNote.Position());
             }
-
         }
 
-        protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote)
+        protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider = false)
         {
+            // TODO: optimize angle for consecutive dots
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
             if (prevNote != null)
             {
-                if (nextNote.CutDirection == (int)CutDir.ANY /*&& previousNote.CutDirection != (int)CutDir.ANY*/)
+                if (nextNote.CutDirection == (int)CutDir.ANY || isSlider)
                 {
-                    // TODO: maybe check inlines (example: also abstruse dilemma)
+                    // TODO: maybe check inlines (example: also abstruse dilemma) and inverts (example: Bad apple (Bitz) )
                     // also try different directions if the swing collides with bombs   
                     MoveTo(prevNote.Position());
                     Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
                     if (!parity.Bool()) dir = -dir;
                     float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
                     desiredAngle = Mathf.DeltaAngle(0f, signedAngle);
-                    Debug.Log($"Beat: {nextNote.JsonTime}, Angle: {desiredAngle}, Signed: {signedAngle}");
-                    //desiredAngle = Utils.ClosestToZero(desiredAngle, desiredAngle - 180);
+                    //Debug.Log($"Beat: {nextNote.JsonTime}, Angle: {desiredAngle}, Signed: {signedAngle}");
 
                 }
-                //else if (note.CutDirection == (int)CutDir.ANY && previousNote.CutDirection == (int)CutDir.ANY)
-                //{
-                //     if (Utils.IsStackOrSlider(previousNote, note)) { return; }
-                //}
             }
             return desiredAngle;
         }
@@ -275,7 +315,7 @@ namespace ParityAnalyser.Sim
 
                 Utils.RenderLine((Vector3)hiltPos + zOff, transform.position + zOff, Color.yellow, Color.black);
 
-                bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), bomb1.Position(), true, bomb1.zPos());
+                bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), bomb1.Position(), false, bomb1.zPos());
 
                 if (swingPathCollides)
                 {
@@ -364,7 +404,7 @@ namespace ParityAnalyser.Sim
 
         public List<SliderGroup> sliderGroups { get; private set; } = [];
 
-        private Vector3 offset => transform.up * CutDistance;
+        private Vector3 cutOffset => transform.up * CutDistance;
         public static readonly float CutDistance = 1f;
 
         protected abstract float maxClockwiseAngle { get; }

@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using static Beatmap.V4.V4CommonData;
-using Parity = ParityAnalyser.ParityAnalyser.Parity;
+using Parity = ParityAnalyser.Parity;
 
 using Random = UnityEngine.Random;
 

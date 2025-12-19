@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using static Beatmap.V4.V4CommonData;
-using Parity = ParityAnalyser.ParityAnalyser.Parity;
+using Parity = ParityAnalyser.Parity;
 
 namespace ParityAnalyser.Sim
 {
@@ -35,41 +35,41 @@ namespace ParityAnalyser.Sim
 
             //leftSaber.RenderBombGroups();
             rightSaber.RenderBombGroups();
-            // Might be better to do both hands at the same time for resets with both hands
-            SaberSnapshot? firstL = this.leftSaber.FirstSwing();
-            if (firstL != null)
+
+            foreach (SaberSnapshot s in this.leftSaber.FirstSwing())
             {
-                redParities.Add(firstL.Value);
+                redParities.Add(s);
             }
             foreach ((ISimulationObject note1, ISimulationObject note2) in this.leftSaber.GetPairs())
             {
-                SaberSnapshot? snapshot = this.leftSaber.Swing(note1, note2);
-                if (snapshot != null)
+                foreach (SaberSnapshot snap in this.leftSaber.Swing(note1, note2))
                 {
-				    redParities.Add(snapshot.Value);
-                    //Debug.Log(snapshot);
+                    redParities.Add(snap);
                 }
             }
 
-            redParities.AddRange(leftSaber.resetSnapshots);
-            redParities = redParities.OrderByDescending(x => x.note.JsonTime).Reverse().ToList();
+            //redParities.AddRange(leftSaber.resetSnapshots);
+            //redParities = redParities.OrderByDescending(x => x.note.JsonTime).Reverse().ToList();
 
-			SaberSnapshot? firstR = this.rightSaber.FirstSwing();
-			if (firstR != null)
-			{
-				blueParities.Add(firstR.Value);
-			}
-			foreach ((ISimulationObject note1, ISimulationObject note2) in this.rightSaber.GetPairs())
-			{
-				SaberSnapshot? snapshot = this.rightSaber.Swing(note1, note2);
-				if (snapshot != null)
-				{
-					blueParities.Add(snapshot.Value);
-				}
-			}
+            foreach (SaberSnapshot s in this.rightSaber.FirstSwing())
+            {
+                blueParities.Add(s);
+            }
+            foreach ((ISimulationObject note1, ISimulationObject note2) in this.rightSaber.GetPairs())
+            {
+                foreach (SaberSnapshot snap in this.rightSaber.Swing(note1, note2))
+                {
+                    blueParities.Add(snap);
+                }
+            }
 
-            blueParities.AddRange(rightSaber.resetSnapshots);
-            blueParities = blueParities.OrderByDescending(x => x.note.JsonTime).Reverse().ToList();
+            //foreach (SaberSnapshot snap in blueParities)
+            //{
+            //    Debug.Log(snap);
+            //}
+
+            //blueParities.AddRange(rightSaber.resetSnapshots);
+            //blueParities = blueParities.OrderByDescending(x => x.note.JsonTime).Reverse().ToList();
         }
 
         private RightSaber rightSaber;
@@ -80,16 +80,14 @@ namespace ParityAnalyser.Sim
 
         
     }
-    public record struct SaberSnapshot(ISimulationObject simObject, Vector3 position, Quaternion rotation, Parity parity, float wristAngle, bool reset = false)
+    public record struct SaberSnapshot(BaseNote note, Vector3 position, Quaternion rotation, Parity parity, float wristAngle, bool reset = false)
     {
 
-        public bool isBombGroup => simObject is BombGroup;
         public Vector3 hilt => position;
         public Vector3 tip => position + (Saber.length * (rotation * Vector3.up));
 
-        public BaseNote note => simObject.GetNote();
 
-        public float beat => simObject.Time();
+        public float beat => note.JsonTime;
 
         public override string ToString() => $"Beat: {beat}, CutDir: {note.CutDirection}, Position: {position}, Rotation: {rotation.eulerAngles}, Wrist Angle: {wristAngle}, Parity: {parity.ToString()}{(reset ? ", Reset" : "")}";
     }

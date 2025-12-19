@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
-using Parity = ParityAnalyser.ParityAnalyser.Parity;
+using Parity = ParityAnalyser.Parity;
 
 namespace ParityAnalyser.Sim
 {
