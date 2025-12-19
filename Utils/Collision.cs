@@ -81,7 +81,7 @@ namespace ParityAnalyser
                 Utils.RenderLine((Vector3)position + zVec, (Vector3)boundaryB + zVec, Color.red, Color.red);
 
                 //Utils.RenderLine((Vector3)bombPosition + zVec, (Vector3)bombPosition + zVec + Vector3.up * Simulation.bombRadius, Color.black, Color.black, 0.3f);
-                //Utils.RenderSphere((Vector3)bombPosition + zVec, Simulation.bombRadius, Color.cyan);
+                Utils.RenderSphere((Vector3)bombPosition + zVec, Simulation.bombRadius, Color.cyan);
                 Debug.Log("");
                 Debug.Log(startAngle); Debug.Log(endAngle);
                 Debug.Log("");

@@ -9,8 +9,14 @@ using BombCondition = System.Func<Beatmap.Base.BaseNote, bool>;
 
 namespace ParityAnalyser
 {
-    public record struct BombGroup(BaseNote startNote, List<BaseNote> bombs, BaseNote endNote)
+    public record struct BombGroup(BaseNote startNote, List<BaseNote> bombs, BaseNote endNote) : ISimulationObject
     {
+
+        public float Time() => startNote.JsonTime;
+        public BaseNote GetNote() => bombs.First();
+        public BaseNote LastNote() => endNote;
+
+        public IEnumerable<BaseNote> Notes() => [startNote, endNote];
         public float minX => (from bomb in bombs orderby bomb.PosX ascending select bomb.PosX).First();
         public float maxX => (from bomb in bombs orderby bomb.PosX descending select bomb.PosX).First();
 

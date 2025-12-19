@@ -72,10 +72,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Simulation\BombGroup.cs" />
+    <Compile Include="Simulation\ISimulationObject.cs" />
     <Compile Include="Simulation\LeftSaber.cs" />
+    <Compile Include="Simulation\Note.cs" />
     <Compile Include="Simulation\RightSaber.cs" />
     <Compile Include="Simulation\Saber.cs" />
     <Compile Include="Simulation\Simulation.cs" />
+    <Compile Include="Simulation\SliderGroup.cs" />
     <Compile Include="UI\Outline.cs" />
     <Compile Include="ParityAnalyser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

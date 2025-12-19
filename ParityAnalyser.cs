@@ -37,6 +37,7 @@ namespace ParityAnalyser
         {
             SceneManager.sceneLoaded += SceneLoaded;
             _ui = new UI(this);
+
         }
 
         
@@ -64,8 +65,8 @@ namespace ParityAnalyser
 
             RenderParities(sim.redParities, Color.red, true, true);
             RenderParities(sim.blueParities, Color.blue, true, true);
-            //AnimateParities(sim.blueParities, Color.blue);
-            //AnimateParities(sim.redParities, Color.red);
+            AnimateParities(sim.blueParities, Color.blue);
+            AnimateParities(sim.redParities, Color.red);
         }
 
         //      public void Analyse()
@@ -196,10 +197,16 @@ namespace ParityAnalyser
         {
             foreach (SaberSnapshot snap in parities)
             {
+                if (snap.isBombGroup) continue;
                 if ((snap.note.Type != (int)NoteType.Bomb) || (snap.note.Type == (int)NoteType.Bomb && snap.reset))
                 {
                     if (renderOutlines)
-                        outline.AddToCache(snap.note, snap.parity == Parity.FOREHAND ? Color.white : Color.black);
+                    {
+                        foreach (BaseNote note in snap.simObject.Notes())
+                        {
+                            outline.AddToCache(note, snap.parity == Parity.FOREHAND ? Color.white : Color.black);
+                        }
+                    }
                 }
                 if (renderSabers)
                 {

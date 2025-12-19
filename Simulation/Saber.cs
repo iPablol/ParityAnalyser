@@ -19,12 +19,24 @@ namespace ParityAnalyser.Sim
 {
     public abstract class Saber
     {
-        public List<BaseNote> notes { get; private set; }
+        public List<ISimulationObject> notes { get; private set; } = [];
+        public List<BombGroup> bombGroups { get; private set; } = [];
         public Saber(List<BaseNote> relevantNotes, Parity start = Parity.BACKHAND)
         {
             this.transform.rotation = Quaternion.identity;
             this.parity = start;
-            this.notes = relevantNotes;
+            
+            IEnumerable<ISimulationObject> notes = from note in relevantNotes
+                               where !note.IsBomb() select new Note(note);
+            IEnumerable<ISimulationObject> bombGroups = ExtractBombGroups(relevantNotes);
+
+            IEnumerable<ISimulationObject> sliderGroups = ExtractSliderGroups(relevantNotes);
+
+            this.bombGroups = bombGroups.Cast<BombGroup>().ToList();
+
+            this.notes = (from simObject in notes.Concat(bombGroups).Concat(sliderGroups)
+                    orderby simObject.Time() ascending select simObject).ToList();
+
             this.wristAngle = 0;
         }
         private GameObject dummyObject = new GameObject("saber dummy object");
@@ -33,40 +45,28 @@ namespace ParityAnalyser.Sim
 
         private bool hasReset = false;
 
+        public List<SaberSnapshot> resetSnapshots { get; protected set; } = [];
+
         public virtual SaberSnapshot? FirstSwing() => this.Swing(null, notes.First());
 
-        private int bombGroupIndex = 0;
 
-        public virtual SaberSnapshot? Swing(BaseNote previousNote, BaseNote nextNote) 
+        public virtual SaberSnapshot? Swing(ISimulationObject previousObject, ISimulationObject nextObject) 
         {
 
 			hasReset = false;
-            //if (nextNote.Type == (int)NoteType.Bomb)
-            //{
-            //    if (Collision.SegmentIntersectsCircle(hilt, tip, new Vector2(nextNote.PosX, nextNote.PosY), Simulation.bombRadius))
-            //    { 
-            //        Reset(nextNote, this.parity.Other());
-            //    }
-            //}
-            if (previousNote == null || !Utils.IsStackOrSlider(previousNote, nextNote))
-            {
-                this.parity = this.parity.Other();
-            }
+
+            this.parity = this.parity.Other();
             
-            if (bombGroupIndex < bombGroups.Count && previousNote == bombGroups[bombGroupIndex].startNote)
-            {
-                // Reached next bomb group
-                HandleBombGroup();
-            }
-            if (hasReset)
-            {
-                RotateTowards(previousNote, nextNote);
-            }
-            else
-            {
-                RotateTowards(previousNote, nextNote);
-            }
-            return new(nextNote, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
+            
+            //if (nextObject is BombGroup group)
+            //{
+            //    HandleBombGroup(group);
+            //}
+            //else
+            //{
+            //    RotateTowards(previousObject, nextObject);
+            //}
+            return new(nextObject, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
         }
 
         public virtual void Reset(BaseNote culprit, Parity parity, string reason) 
@@ -76,25 +76,39 @@ namespace ParityAnalyser.Sim
             hasReset = true;
             this.parity = parity;
             this.transform.rotation = Quaternion.identity;
-            transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 180f : 0f, Vector3.right);
+            transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 0f : 180f, Vector3.right);
             this.wristAngle = 0;
+
+            this.resetSnapshots.Add(new (new Note(culprit), transform.position, transform.rotation, parity, wristAngle, true));
         }
 
-        protected virtual void RotateTowards(BaseNote previousNote, BaseNote note)
+        protected void MoveTo(Vector2 pos) { this.transform.position = new Vector3(pos.x, pos.y, transform.position.z); }
+        protected void MoveTo(Vector3 pos) { this.transform.position = pos; }
+
+        protected virtual void RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
         {
-            float desiredAngle = CutAngle(previousNote, note);
+            BaseNote previousNote = previousObject.LastNote();
+            BaseNote nextNote = nextObject.GetNote();
+            float desiredAngle = CutAngle(previousNote, nextNote);
             float roll = desiredAngle - wristAngle;
             if (roll < -270 || roll > 270)
             {
-                Reset(note, this.parity.Other(), "Wristroll too large");
+                Reset(nextNote, this.parity.Other(), "Wristroll too large");
                 return;
             }
             this.wristAngle = desiredAngle;
             transform.rotation = Quaternion.AngleAxis(wristAngle, Vector3.forward);
             transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? -180f : 0f, Vector3.right);
 
-            transform.position = new Vector3(note.PosX, note.PosY, transform.position.z) - offset;
-            
+            if ((CutDir)nextNote.CutDirection != CutDir.ANY)
+            {
+                MoveTo((Vector3)nextNote.Position() - offset);
+            }
+            else
+            {
+                MoveTo(nextNote.Position());
+            }
+
         }
 
         protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote)
@@ -104,8 +118,15 @@ namespace ParityAnalyser.Sim
             {
                 if (nextNote.CutDirection == (int)CutDir.ANY /*&& previousNote.CutDirection != (int)CutDir.ANY*/)
                 {
-                    desiredAngle = (float)(Math.Atan2(nextNote.PosX - prevNote.PosX, - (nextNote.PosY - prevNote.PosY)) * 180.0 / Math.PI);
-                    desiredAngle = Utils.ClosestToZero(desiredAngle, desiredAngle - 180);
+                    // TODO: maybe check slider direction (or take into account the next note) (example: abstruse dilemma dot stacks), and inlines too (example: also abstruse dilemma)
+                    // also try different directions if the swing collides with bombs   
+                    MoveTo(prevNote.Position());
+                    Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
+                    if (!parity.Bool()) dir = -dir;
+                    float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
+                    desiredAngle = Mathf.DeltaAngle(0f, signedAngle);
+                    Debug.Log($"Beat: {nextNote.JsonTime}, Angle: {desiredAngle}, Signed: {signedAngle}");
+                    //desiredAngle = Utils.ClosestToZero(desiredAngle, desiredAngle - 180);
 
                 }
                 //else if (note.CutDirection == (int)CutDir.ANY && previousNote.CutDirection == (int)CutDir.ANY)
@@ -118,9 +139,8 @@ namespace ParityAnalyser.Sim
 
         protected virtual float WristRoll(BaseNote prevNote, BaseNote nextNote) => CutAngle(prevNote, nextNote) - wristAngle;
 
-        private void HandleBombGroup()
+        private void HandleBombGroup(BombGroup group)
         {
-            BombGroup group = bombGroups[bombGroupIndex++];
 
             if (group.endNote == null)
             {
@@ -177,9 +197,9 @@ namespace ParityAnalyser.Sim
             // TODO: Distinguish from bomb spam (example: MARENOL), detect spirals with missing bombs (example: meowter space
             if (group.AllConditions(topRowReset) && group.AllConditions(bottomRowReset))
             {
-                bool isBottomRow = (from bomb in @group.Where(note => note.TopRow() || note.BottomRow())
-                                    orderby bomb.JsonTime descending
-                                    select bomb).Last().BottomRow();
+                bool isBottomRow = (from b in @group.Where(note => note.TopRow() || note.BottomRow())
+                                    orderby b.JsonTime descending
+                                    select b).Last().BottomRow();
                 if (isBottomRow)
                 {
                     Reset(group.bombs[0], Parity.FOREHAND, "Bottom row spiral reset");
@@ -207,71 +227,121 @@ namespace ParityAnalyser.Sim
                 }
             }
 
+            
+            //if (ExploreBombGroup(group, group.startNote.JsonTime, group.endNote.JsonTime) is BaseNote bomb)
+            //{
+            //    Reset(bomb, parity.Other(), "Swing path");
+            //    return;
+            //}
+
+            // TODO: reset when the only resting position available is covered by bombs, all other slots are walls
+
+        }
+
+        protected virtual BaseNote ExploreBombGroup(BombGroup group, float startTime, float endTime, bool recursive = false)
+        {
+            float roll = WristRoll(group.startNote, group.endNote);
+            Vector3 originalPos = transform.position;
             foreach ((BaseNote bomb1, BaseNote bomb2) in group.GetPairs())
             {
                 float swingOffset = parity.Bool() ? 180f : 0f;
                 float startAngle = wristAngle + swingOffset;
                 float endAngle = wristAngle + roll + swingOffset;
-                float lerpFactor = (group.endNote.JsonTime - group.startNote.JsonTime);
+                float lerpFactor = (endTime - startTime);
 
-                float bomb1LerpAmount = (bomb1.JsonTime - group.startNote.JsonTime) / lerpFactor;
-                float bomb2LerpAmount = (bomb2.JsonTime - group.startNote.JsonTime) / lerpFactor;
+                float bomb1LerpAmount = (bomb1.JsonTime - startTime) / lerpFactor;
+                float bomb2LerpAmount = (bomb2.JsonTime - startTime) / lerpFactor;
 
                 bool isCenter = bomb1.MiddleRow() && (bomb1.LeftInnerLane() || bomb1.RightInnerLane());
                 float distanceToBomb = (new Vector2(hilt.x, hilt.y) - bomb1.Position()).magnitude;
 
                 Vector2 hiltPos = new Vector2(hilt.x, hilt.y);
-                
+
                 Vector3 zOff = new Vector3(0, 0, bomb1.zPos());
                 Vector2 center = new Vector2(1.5f, 1f);
                 //Utils.RenderLine((Vector3)hiltPos + zOff, (Vector3)center + zOff, Color.magenta, Color.magenta, 0.3f);
                 Vector2 directionToCenter = (center - hiltPos).normalized * (isCenter ? -1f : 1f);
-                float movementScale = 15f;
+
+                float movementScale = 10f;
                 float timeScaleFactor = (bomb2.JsonTime - bomb1.JsonTime);
-                float bombDistanceScaleFactor = (1 / Mathf.Pow(Vector2.Distance(hiltPos, bomb1.Position()), 2));
-                this.transform.position += (Vector3)(movementScale * directionToCenter * timeScaleFactor * bombDistanceScaleFactor);
+                //float distanceScaleFactor = (1 / Mathf.Pow(Vector2.Distance(hiltPos, bomb1.Position()), 2));
+                float distanceScaleFactor = Vector2.Distance(hiltPos, center);
+                this.transform.position += (Vector3)(movementScale * directionToCenter * timeScaleFactor * distanceScaleFactor);
+
+
                 Utils.RenderLine((Vector3)hiltPos + zOff, transform.position + zOff, Color.yellow, Color.black);
 
                 bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), bomb1.Position(), true, bomb1.zPos());
 
                 if (swingPathCollides)
                 {
-                    Reset(bomb1, parity.Other(), "Swing path");
-                    return;
+                    // Try to do the full roll from start until this bomb?
+                    if (recursive)
+                    {
+                        Reset(bomb1, parity.Other(), "Swing path (recursive resolution)");
+                        return bomb1;
+                    }
+                    else if (ExploreBombGroup(group, startTime, bomb1.JsonTime, false) is BaseNote note)
+                    {
+                        // Then try resetting and roll from the reset position
+                        Reset(note, parity.Other(), "Swing path (possible spiral)");
+                        return ExploreBombGroup(group, bomb1.JsonTime, endTime, true);
+                    }
+                    else
+                    {
+                        return null;
+                    }
+
+                    //Reset(bomb1, parity.Other(), "Swing path");
+                    return bomb1;
                 }
             }
-
-
-            // TODO: reset when the only resting position available is covered by bombs, all other slots are walls
-
+            return null;
         }
 
-        public virtual void ExtractBombGroups()
+        public virtual IEnumerable<ISimulationObject> ExtractBombGroups(List<BaseNote> allNotes)
         {
             bool firstNoteHappened = false;
-            for (int i = 0; i < notes.Count; i++)
+            for (int i = 0; i < allNotes.Count; i++)
             {
-                if (notes[i].Type != (int)NoteType.Bomb) firstNoteHappened = true;
-                if (firstNoteHappened && notes[i].Type == (int)NoteType.Bomb)
+                if (allNotes[i].Type != (int)NoteType.Bomb) firstNoteHappened = true;
+                if (firstNoteHappened && allNotes[i].Type == (int)NoteType.Bomb)
                 {
-                    BaseNote start = notes[i - 1];
+                    BaseNote start = allNotes[i - 1];
                     List<BaseNote> bombs = [];
-                    while (notes[i].Type == (int)(NoteType.Bomb))
+                    while (allNotes[i].Type == (int)(NoteType.Bomb))
                     {
-                        bombs.Add(notes[i]);
-                        if (i == notes.Count - 1)
+                        bombs.Add(allNotes[i]);
+                        if (i == allNotes.Count - 1)
                         {
-                            bombGroups.Add(new(start, bombs, null));
-                            goto Finish;
+                            yield return new BombGroup(start, bombs, null);
+                            yield break;
                         }
                         i++;
                     }
-                    bombGroups.Add(new (start, bombs, notes[i]));
+                    yield return new BombGroup(start, bombs, allNotes[i]);
                 }
             }
-            Finish:
-            notes = notes.Where(note => note.Type != (int)NoteType.Bomb).ToList();
 
+        }
+
+        public virtual IEnumerable<ISimulationObject> ExtractSliderGroups(List<BaseNote> allNotes)
+        {
+            for (int i = 1; i < allNotes.Count; i++)
+            {
+                if (Utils.IsStackOrSlider(allNotes[i - 1], allNotes[i]))
+                {
+                    BaseNote previousNote = i <= 1 ? null : allNotes[i - 2];
+                    List<BaseNote> slider = [allNotes[i - 1]];
+                    while (Utils.IsStackOrSlider(allNotes[i - 1], allNotes[i]))
+                    {
+                        slider.Add(allNotes[i]);
+                        i++;
+                        if (i >= allNotes.Count) break;
+                    }
+                    yield return new SliderGroup(previousNote, slider);
+                }
+            }
         }
 
         public void RenderBombGroups(bool renderStart = false, bool renderEnd = false)
@@ -288,7 +358,7 @@ namespace ParityAnalyser.Sim
             }
         }
 
-        public List<BombGroup> bombGroups { get; private set; } = [];
+        public List<SliderGroup> sliderGroups { get; private set; } = [];
 
         private Vector3 offset => transform.up * CutDistance;
         public static readonly float CutDistance = 1f;
@@ -302,10 +372,10 @@ namespace ParityAnalyser.Sim
         public Vector3 hilt => this.transform.position;
         public Vector3 tip => this.transform.position + (length * transform.up);
 
-        public IEnumerator<BaseNote> GetEnumerator() => this.notes.GetEnumerator();
-        public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(this.notes, false);
+        public IEnumerator<ISimulationObject> GetEnumerator() => this.notes.GetEnumerator();
+        public IEnumerable<(ISimulationObject, ISimulationObject)> GetPairs() => new OverlappingPairIterator<ISimulationObject>(this.notes, false);
 
-        public static implicit operator List<BaseNote>(Saber saber) => saber.notes;
+        public static implicit operator List<ISimulationObject>(Saber saber) => saber.notes;
 
         protected abstract float DesiredAngle(CutDir dir);
     }

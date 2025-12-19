@@ -102,8 +102,7 @@ namespace ParityAnalyser
         }
 
         public static float ClosestToZero(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
-        public static float sliderThreshold = 1 / 11.5f; // Thanks yabje for those 1/12 sliders
-        public static bool IsStackOrSlider(BaseNote note1, BaseNote note2) => Math.Abs(note2.JsonTime -  note1.JsonTime) <= sliderThreshold;
+        public static bool IsStackOrSlider(BaseNote note1, BaseNote note2) => Math.Abs(note2.JsonTime -  note1.JsonTime) <= Simulation.sliderThreshold;
         public static bool Bool(this Parity parity) => parity == Parity.FOREHAND;
         public static Parity ToParity(this bool b) => b ? Parity.FOREHAND : Parity.BACKHAND;
         public static Parity Other(this Parity parity) => (!parity.Bool()).ToParity();
@@ -175,6 +174,35 @@ namespace ParityAnalyser
             return new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
         }
 
+        public static float DownAngleBetween(Vector2 a, Vector2 b)
+        {
+            float a1 = AngleFromDown(a);
+            float a2 = AngleFromDown(b);
+            return Mathf.DeltaAngle(a1, a2);
+        }
+
+        public static float AngleFromDown(Vector2 v)
+        {
+            float angle = Mathf.Atan2(v.y, v.x) * Mathf.Rad2Deg;
+            angle = 90f - angle;
+            if (angle < 0) angle += 360f;
+            return angle;
+        }
+
+        public static float DownAngleFromDir(Vector2 dir)
+        {
+            dir.Normalize();
+
+            // Standard atan2 gives angle with 0 at right
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+            // Rotate reference so 0 is down
+            angle = 90f - angle;
+
+
+
+            return angle;
+        }
 
     }
     

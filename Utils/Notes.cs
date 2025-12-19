@@ -1,4 +1,5 @@
 ﻿using Beatmap.Base;
+using Beatmap.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,6 +30,8 @@ namespace ParityAnalyser
         public static bool LeftInnerLane(this BaseNote note) => note.PosX == 1;
         public static bool RightInnerLane(this BaseNote note) => note.PosX == 2;
         public static bool RightOuterLane(this BaseNote note) => note.PosX == 3;
+
+        public static bool IsBomb(this BaseNote note) => note.Type == (int)NoteType.Bomb;
 
         public static int CutDirFromVector(Vector2 direction)
         {
