@@ -56,16 +56,20 @@ namespace ParityAnalyser.Sim
 			hasReset = false;
 
             this.parity = this.parity.Other();
-            
-            
-            //if (nextObject is BombGroup group)
-            //{
-            //    HandleBombGroup(group);
-            //}
-            //else
-            //{
-            //    RotateTowards(previousObject, nextObject);
-            //}
+
+
+            if (nextObject is BombGroup group)
+            {
+                HandleBombGroup(group);
+            }
+            else if (nextObject is SliderGroup slider)
+            {
+
+            }
+            else
+            {
+                RotateTowards(previousObject, nextObject);
+            }
             return new(nextObject, this.transform.position, this.transform.rotation, this.parity, this.wristAngle, hasReset); 
         }
 
@@ -87,7 +91,7 @@ namespace ParityAnalyser.Sim
 
         protected virtual void RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
         {
-            BaseNote previousNote = previousObject.LastNote();
+            BaseNote previousNote = previousObject?.LastNote() ?? null;
             BaseNote nextNote = nextObject.GetNote();
             float desiredAngle = CutAngle(previousNote, nextNote);
             float roll = desiredAngle - wristAngle;
@@ -118,7 +122,7 @@ namespace ParityAnalyser.Sim
             {
                 if (nextNote.CutDirection == (int)CutDir.ANY /*&& previousNote.CutDirection != (int)CutDir.ANY*/)
                 {
-                    // TODO: maybe check slider direction (or take into account the next note) (example: abstruse dilemma dot stacks), and inlines too (example: also abstruse dilemma)
+                    // TODO: maybe check inlines (example: also abstruse dilemma)
                     // also try different directions if the swing collides with bombs   
                     MoveTo(prevNote.Position());
                     Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
