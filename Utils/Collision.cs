@@ -1,10 +1,12 @@
-﻿using ParityAnalyser.Sim;
+﻿using Beatmap.Base;
+using ParityAnalyser.Sim;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using static Beatmap.V4.V4CommonData;
 
 namespace ParityAnalyser
 {
@@ -66,22 +68,21 @@ namespace ParityAnalyser
         }
 
         // https://math.stackexchange.com/questions/177857/circular-sector-to-circle-intersection#:~:text=To%20determine%20if%20a%20circular%20sector%20intersects,radius%20r%20distance%20from%20the%20center%20point
-        public static bool SwingPathIntersects(Vector2 position, float startAngle, float endAngle, Vector2 bombPosition, bool debug = false, float zOff = 0f)
+        public static bool SwingPathIntersects(Vector2 position, float startAngle, float endAngle, Vector2 bombPosition, bool debug = false, BaseNote bombForDebug = null)
         {
             // Circles are too far apart
             if (Vector2.Distance(position, bombPosition) > Saber.length + Simulation.bombRadius) return false;
 
-            Vector3 zVec = new Vector3(0, 0, zOff);
 
 			Vector2 boundaryA = position + (Utils.DirectionFromDownAngle(startAngle) * Saber.length); // Boundary point B
 			Vector2 boundaryB = position + (Utils.DirectionFromDownAngle(endAngle) * Saber.length); // Boundary point B
             if (debug)
             {
-                Utils.RenderLine((Vector3)position + zVec, (Vector3)boundaryA + zVec, Color.blue, Color.blue);
-                Utils.RenderLine((Vector3)position + zVec, (Vector3)boundaryB + zVec, Color.red, Color.red);
+                Utils.RenderLine((Vector3)position, (Vector3)boundaryA, Color.blue, Color.blue, sync: bombForDebug);
+                Utils.RenderLine((Vector3)position, (Vector3)boundaryB, Color.red, Color.red, sync: bombForDebug);
 
-                //Utils.RenderLine((Vector3)bombPosition + zVec, (Vector3)bombPosition + zVec + Vector3.up * Simulation.bombRadius, Color.black, Color.black, 0.3f);
-                Utils.RenderSphere((Vector3)bombPosition + zVec, Simulation.bombRadius, Color.cyan);
+                //Utils.RenderLine((Vector3)bombPosition, (Vector3)bombPosition + zVec + Vector3.up * Simulation.bombRadius, Color.black, Color.black, 0.3f, bombForDebug);
+                Utils.RenderSphere((Vector3)bombPosition, Simulation.bombRadius, Color.cyan, bombForDebug);
                 Debug.Log("");
                 Debug.Log(startAngle); Debug.Log(endAngle);
                 Debug.Log("");
@@ -122,8 +123,8 @@ namespace ParityAnalyser
                     {
                         Debug.Log($"P1 Alpha: {alpha}, beta: {beta}");
                         Debug.Log($"A: {boundaryA}, B: {boundaryB}, P1: {p1}");
-                        Utils.RenderLine((Vector3)position + zVec, (Vector3)p1 + zVec, Color.green, Color.green);
-                        Utils.RenderLine(position, p2, Color.green, Color.green);
+                        Utils.RenderLine((Vector3)position, (Vector3)p1, Color.green, Color.green, sync: bombForDebug);
+                        Utils.RenderLine(position, p2, Color.green, Color.green, sync: bombForDebug);
                     }
                     return true;
                 }
@@ -135,8 +136,8 @@ namespace ParityAnalyser
                     {
                         Debug.Log($"P2 Alpha: {alpha}, beta: {beta}, P2{p2}");
                         Debug.Log($"A: {boundaryA}, B: {boundaryB}");
-                        Utils.RenderLine((Vector3)position + zVec, (Vector3)p1 + zVec, Color.green, Color.green);
-                        Utils.RenderLine((Vector3)position + zVec, (Vector3)p2 + zVec, Color.green, Color.green);
+                        Utils.RenderLine((Vector3)position, (Vector3)p1, Color.green, Color.green, sync: bombForDebug);
+                        Utils.RenderLine((Vector3)position, (Vector3)p2, Color.green, Color.green, sync: bombForDebug);
                     }
                     return true;
                 }

@@ -29,6 +29,8 @@ namespace ParityAnalyser
         public bool All(BombCondition predicate) => bombs.All(predicate);
         public bool Any(BombCondition predicate) => bombs.Any(predicate);
         
+
+        public IEnumerable<BaseNote> After(float jsonTime) => this.Where(bomb => bomb.JsonTime >= jsonTime);
         public IEnumerable<BaseNote> Where(BombCondition condition) => bombs.Where(condition);
 
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.Append(endNote).ToList(), false);
@@ -43,6 +45,19 @@ namespace ParityAnalyser
                 }
             }
             return true;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new();
+            sb.AppendLine($"Bomb group from {startNote.JsonTime} to {endNote.JsonTime}");
+            foreach (var bomb in bombs)
+            {
+                sb.AppendLine(bomb.JsonTime.ToString());
+            }
+
+            sb.AppendLine();
+            return sb.ToString();
         }
     }
 

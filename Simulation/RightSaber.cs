@@ -12,7 +12,7 @@ namespace ParityAnalyser.Sim
 {
     public class RightSaber : Saber
     {
-        public RightSaber(List<BaseNote> relevantNotes, Parity start = Parity.BACKHAND) : base(relevantNotes, start)
+        public RightSaber(List<BaseNote> relevantNotes, Parity start = Parity.FOREHAND) : base(relevantNotes, start)
         {
             this.transform.position = new Vector3(2f, 1f);
         }

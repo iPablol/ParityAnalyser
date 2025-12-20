@@ -91,7 +91,7 @@ namespace ParityAnalyser
 	//}
 	internal static class Utils
     {
-
+        public static Vector2 gridCenter = new Vector2(1.5f, 1f);
         public static Color RandomColor()
         {
             return new Color(
@@ -107,7 +107,7 @@ namespace ParityAnalyser
         public static Parity ToParity(this bool b) => b ? Parity.FOREHAND : Parity.BACKHAND;
         public static Parity Other(this Parity parity) => (!parity.Bool()).ToParity();
 
-        public static void RenderLine(Vector3 pos1, Vector3 pos2, Color colorStart, Color colorEnd, float width = 0.05f)
+        public static void RenderLine(Vector3 pos1, Vector3 pos2, Color colorStart, Color colorEnd, float width = 0.05f, BaseNote sync = null)
         {
             GameObject renderer = new GameObject("line");
             LineRenderer lr = renderer.AddComponent<LineRenderer>();
@@ -132,16 +132,16 @@ namespace ParityAnalyser
             lr.material = new Material(Shader.Find("Sprites/Default"));
 
             var atc = ParityAnalyser.atc;
-            lr.SetPositions([pos1 + atc.CurrentJsonTime.Offset(), pos2 + atc.CurrentJsonTime.Offset()]);
+            lr.SetPositions([pos1 + sync.Offset(), pos2 + sync.Offset()]);
             atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
             {
                 float time = atc.CurrentJsonTime;
-                lr.SetPositions([pos1 + time.Offset(), pos2 + time.Offset()]);
+                lr.SetPositions([pos1 + sync.Offset(), pos2 + sync.Offset()]);
 
             }));
         }
 
-        public static void RenderSphere(Vector3 pos, float radius, Color color)
+        public static void RenderSphere(Vector3 pos, float radius, Color color, BaseNote sync = null)
         {
             GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             sphere.transform.localScale = Vector3.one * radius;
@@ -151,12 +151,11 @@ namespace ParityAnalyser
             renderer.material.color = color;
 
             var atc = ParityAnalyser.atc;
-            sphere.transform.position = pos + atc.CurrentJsonTime.Offset();
+            sphere.transform.position = pos + sync.Offset();
             atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
             {
                 float time = atc.CurrentJsonTime;
-                sphere.transform.position = pos + time.Offset();
-
+                sphere.transform.position = pos + sync.Offset();
             }));
 
         }
