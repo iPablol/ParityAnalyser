@@ -230,7 +230,9 @@ namespace ParityAnalyser.Sim
                 yield break;
             }
 
-            foreach (SaberSnapshot reset in ExploreBombGroup(group, group.startNote.JsonTime, group.endNote.JsonTime)) yield return reset;
+            IEnumerable<SaberSnapshot> explorationResets = ExploreBombGroup(group, group.startNote.JsonTime, group.endNote.JsonTime);
+            foreach (SaberSnapshot reset in explorationResets) yield return reset;
+            if (explorationResets.Count() > 0) yield break;
 
             // TODO: resets marked by bombs to the sides of the note
             // All bombs are in the same beat as the next note
@@ -335,6 +337,7 @@ namespace ParityAnalyser.Sim
         {
             float roll = WristRoll(group.startNote, group.endNote);
             Vector3 originalPos = transform.position;
+            // TODO: change this to every beat with a bomb
             foreach ((BaseNote bomb1, BaseNote bomb2) in group.GetPairs())
             {
                 float swingOffset = parity.Bool() ? 180f : 0f;
@@ -354,11 +357,34 @@ namespace ParityAnalyser.Sim
                 //Utils.RenderLine((Vector3)hiltPos + zOff, (Vector3)center + zOff, Color.magenta, Color.magenta, 0.3f);
                 Vector2 directionToCenter = (center - hiltPos).normalized * (isCenter ? -1f : 1f);
 
-                float movementScale = 10f;
-                float timeScaleFactor = (bomb2.JsonTime - bomb1.JsonTime);
-                //float distanceScaleFactor = (1 / Mathf.Pow(Vector2.Distance(hiltPos, bomb1.Position()), 2));
-                float distanceScaleFactor = Vector2.Distance(hiltPos, center);
-                this.transform.position += (Vector3)(movementScale * directionToCenter * timeScaleFactor * distanceScaleFactor);
+                //float movementScale = 10f;
+                //float timeScaleFactor = (bomb2.JsonTime - bomb1.JsonTime);
+                ////float distanceScaleFactor = (1 / Mathf.Pow(Vector2.Distance(hiltPos, bomb1.Position()), 2));
+                //float distanceScaleFactor = Vector2.Distance(hiltPos, center);
+                //this.transform.position += (Vector3)(movementScale * directionToCenter * timeScaleFactor * distanceScaleFactor);
+
+                Vector2 totalForce = Vector2.zero;
+
+                int count = 0;
+                foreach (BaseNote bomb in group.After(bomb1.JsonTime))
+                {
+                    count++;
+                    float effectRadius = 1f;
+                    Vector2 bombPos = new Vector2(bomb.PosX, bomb.PosY);
+                    float timeDistance = bomb.JsonTime - bomb1.JsonTime;
+                    float projectionDistance = Vector2.Distance(bombPos, hiltPos);
+
+                    Vector2 dir = (hiltPos - bombPos).normalized;
+
+                    float timeScaleFactor = 2f, distanceScaleFactor = 1f;
+                    float magnitude = timeScaleFactor * (1 / (timeDistance + effectRadius)) + distanceScaleFactor * (1 / (projectionDistance + effectRadius));
+
+                    totalForce += dir * magnitude;
+                }
+                totalForce /= count;
+                totalForce += RestForce();
+                transform.position += (Vector3)totalForce;
+                Debug.Log(transform.position);
 
 
                 Utils.RenderLine((Vector3)hiltPos, transform.position, Color.yellow, Color.black, sync: bomb1);
@@ -450,6 +476,15 @@ namespace ParityAnalyser.Sim
                 }
                 if (renderEnd) ParityAnalyser.outline.AddToCache(group.endNote, groupColor);
             }
+        }
+
+        protected abstract Vector2 restPoint { get; }
+        protected Vector2 RestForce()
+        {
+            Vector2 dir = (restPoint - (Vector2)transform.position).normalized;
+            float radius = 0f;
+            float magnitude = Mathf.Min(0.6f * Mathf.Max(0, Mathf.Pow(Vector2.Distance(restPoint, transform.position) - radius, 1.3f)), 4f);
+            return dir * magnitude;
         }
 
         public List<SliderGroup> sliderGroups { get; private set; } = [];

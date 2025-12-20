@@ -194,6 +194,7 @@ namespace ParityAnalyser
             //});
 
             AddButton(_menu.transform, "Analyse", "Analyse", new Vector2(0, -20), _plugin.Analyse);
+            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(0, -40), ParityAnalyser.ClearRenders);
 
             _menu.SetActive(false);
             _extensionBtn.Click = () =>

@@ -15,14 +15,14 @@ namespace ParityAnalyser.Sim
     {
         public LeftSaber(List<BaseNote> relevantNotes, Parity start = Parity.FOREHAND) : base(relevantNotes, start)
         {
-            this.transform.position = new Vector3(1f, 1f);
+            this.transform.position = restPoint;
         }
 
         protected override float maxClockwiseAngle => -135f;
 
         protected override float maxCCAngle => 180f;
 
-
+        protected override Vector2 restPoint { get; } = new Vector2(1f, 1f);
 
         protected override float DesiredAngle(NoteDirection dir) => this.parity switch
         {

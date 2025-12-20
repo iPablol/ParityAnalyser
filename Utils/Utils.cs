@@ -107,6 +107,7 @@ namespace ParityAnalyser
         public static Parity ToParity(this bool b) => b ? Parity.FOREHAND : Parity.BACKHAND;
         public static Parity Other(this Parity parity) => (!parity.Bool()).ToParity();
 
+        // TODO: clear all renders button
         public static void RenderLine(Vector3 pos1, Vector3 pos2, Color colorStart, Color colorEnd, float width = 0.05f, BaseNote sync = null)
         {
             GameObject renderer = new GameObject("line");
@@ -133,17 +134,19 @@ namespace ParityAnalyser
 
             var atc = ParityAnalyser.atc;
             lr.SetPositions([pos1 + sync.Offset(), pos2 + sync.Offset()]);
-            atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
+            Action update = () =>
             {
                 float time = atc.CurrentJsonTime;
                 lr.SetPositions([pos1 + sync.Offset(), pos2 + sync.Offset()]);
 
-            }));
+            };
+            ParityAnalyser.AddRender(renderer, update);
         }
 
         public static void RenderSphere(Vector3 pos, float radius, Color color, BaseNote sync = null)
         {
             GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+
             sphere.transform.localScale = Vector3.one * radius;
 
             var renderer = sphere.GetComponent<MeshRenderer>();
@@ -152,11 +155,12 @@ namespace ParityAnalyser
 
             var atc = ParityAnalyser.atc;
             sphere.transform.position = pos + sync.Offset();
-            atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
+            Action update = () =>
             {
                 float time = atc.CurrentJsonTime;
                 sphere.transform.position = pos + sync.Offset();
-            }));
+            };
+            ParityAnalyser.AddRender(sphere, update);
 
         }
 

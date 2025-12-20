@@ -37,6 +37,12 @@ namespace ParityAnalyser
 			});
 		}
 
+		public void ClearCache()
+		{
+			outlineCache.Clear();
+			RefreshOutlines();
+		}
+
 		public void SetOutline(BaseObject baseObject)
 		{
 			if (baseObject is BaseNote note)

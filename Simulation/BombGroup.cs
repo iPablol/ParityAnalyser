@@ -30,7 +30,7 @@ namespace ParityAnalyser
         public bool Any(BombCondition predicate) => bombs.Any(predicate);
         
 
-        public IEnumerable<BaseNote> After(float jsonTime) => this.Where(bomb => bomb.JsonTime >= jsonTime);
+        public IEnumerable<BaseNote> After(float jsonTime) => this.Where(bomb => bomb.JsonTime > jsonTime);
         public IEnumerable<BaseNote> Where(BombCondition condition) => bombs.Where(condition);
 
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.Append(endNote).ToList(), false);

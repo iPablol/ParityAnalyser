@@ -32,6 +32,9 @@ namespace ParityAnalyser
 
         internal static Outline outline;
 
+        internal static List<GameObject> renders = [];
+        internal static List<Action> renderUpdaters = [];
+
         [Init]
         private void Init()
         {
@@ -56,6 +59,29 @@ namespace ParityAnalyser
                 MapEditorUI mapEditorUI = Object.FindObjectOfType<MapEditorUI>();
                 _ui.AddMenu(mapEditorUI);
             }
+        }
+
+        public static void AddRender(GameObject renderer, Action updater)
+        {
+            renders.Add(renderer);
+            renderUpdaters.Add(updater);
+            atc.TimeChanged = Delegate.Combine(atc.TimeChanged, updater) as Action;
+        }
+
+        public static void ClearRenders()
+        {
+            foreach (var r in renders)
+            {
+                Object.DestroyImmediate(r);
+            }
+            renders.Clear();
+            outline.ClearCache();
+
+            foreach (var r in renderUpdaters)
+            {
+                atc.TimeChanged = Delegate.Remove(atc.TimeChanged, r) as Action;
+            }
+
         }
 
         public void Analyse()
@@ -93,6 +119,16 @@ namespace ParityAnalyser
             lr.startWidth = lr.endWidth = 0.05f;
             lr.material = new Material(Shader.Find("Sprites/Default"));
             lr.material.color = handColor;
+            Action timeChanged = () =>
+            {
+                float time = atc.CurrentJsonTime;
+                Vector3 position = Interpolation.SamplePositionAtTime(parities, time);
+                Quaternion rotation = Interpolation.SampleRotationAtTime(parities, time);
+                Vector3 tip = position + (Saber.length * (rotation * Vector3.up));
+                lr.SetPositions([position + time.Offset(), tip + time.Offset()]);
+
+            };
+            ParityAnalyser.AddRender(renderer, timeChanged);
 
             GameObject angleRenderer = new GameObject("wrist angle animation");
             LineRenderer alr = angleRenderer.AddComponent<LineRenderer>();
@@ -114,17 +150,13 @@ namespace ParityAnalyser
             alr.material = new Material(Shader.Find("Sprites/Default"));
             alr.material.color = Color.white;
             alr.startWidth = alr.endWidth = 0.01f;
-
-            atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() =>
+            Action update = () =>
             {
                 float time = atc.CurrentJsonTime;
                 Vector3 position = Interpolation.SamplePositionAtTime(parities, time);
-                Quaternion rotation = Interpolation.SampleRotationAtTime(parities, time);
-                Vector3 tip = position + (Saber.length * (rotation * Vector3.up));
-                lr.SetPositions([position + time.Offset(), tip + time.Offset()]);
-
                 DrawAngleIndicator(alr, position + time.Offset(), 0.2f, Interpolation.SampleWristAngleAtTime(parities, time));
-            }));
+            };
+            ParityAnalyser.AddRender(angleRenderer, update);
         }
 
         internal void RenderParities(List<SaberSnapshot> parities, Color handColor, bool renderOutlines = true, bool renderSabers = true)
@@ -143,7 +175,6 @@ namespace ParityAnalyser
                 if (renderSabers)
                 {
                     GameObject renderer = new GameObject("line renderer");
-
 
 
                     LineRenderer lr = renderer.AddComponent<LineRenderer>();
@@ -165,7 +196,8 @@ namespace ParityAnalyser
                     lr.startWidth = lr.endWidth = 0.05f;
                     lr.material = new Material(Shader.Find("Sprites/Default"));
                     lr.material.color = handColor;
-                    atc.TimeChanged = (Action)Delegate.Combine(atc.TimeChanged, new Action(() => lr.SetPositions([snap.hilt + snap.note.Offset(), snap.tip + snap.note.Offset()])));
+                    Action update = () => lr.SetPositions([snap.hilt + snap.note.Offset(), snap.tip + snap.note.Offset()]);
+                    ParityAnalyser.AddRender(renderer, update);
                 }
             }
             outline.RefreshOutlines();
