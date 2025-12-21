@@ -22,6 +22,8 @@ namespace ParityAnalyser.Sim
         // Howl in the night sky has upside down hits
         protected override float maxCCAngle => 180f;
 
+        protected override float preferredRollDirection => Mathf.Sign(maxClockwiseAngle);
+
         protected override Vector2 restPoint { get; } = new Vector2(2f, 1f);
 
         protected override float DesiredAngle(NoteDirection dir) => this.parity switch

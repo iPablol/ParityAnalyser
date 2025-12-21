@@ -289,22 +289,20 @@ namespace ParityAnalyser.Sim
                 ];
             bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
             // TODO: softcode these variables
-            bool rollTowardRestingPosition = (wristAngle != 0f && Mathf.Sign(wristAngle) == Mathf.Sign(roll)) 
-                                                || (wristAngle == 0f && roll == 0f);
-            //Debug.Log($"Wrist: {wristAngle}, roll: {roll} ({rollTowardRestingPosition})");
-            bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && !rollTowardRestingPosition;
-            if (shouldResetDueToAngle && Mathf.Abs(roll) > 90f)
+            Debug.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
+            bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Mathf.Abs(roll) >= 135f || Mathf.Abs(wristAngle + roll) >= 180f);
+            if (shouldResetDueToAngle)
             {
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
                 yield break;
             }
             bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
-            bool shouldResetDueToInline = group.endNote.BottomRow();
 
-            //Debug.Log($"Beat: {group.startNote.JsonTime}, angle: {wristAngle}, roll: {roll}, condition: {Mathf.Abs(wristAngle + roll)}, desired: {DesiredAngle((CutDir)group.endNote.CutDirection)}");
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            // TODO: check for diagonal resets (bombs are inline with both notes)
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToRoll))
             {
-                //TODO: try to move out of the way
+                Debug.Log($"Angle: {shouldResetDueToAngle} - wa: {wristAngle} - r: {roll} - c: {RollsComfortably(roll)}\n" +
+                    $"Roll: {shouldResetDueToRoll} - r: {roll}");
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
                 yield break;
             }
@@ -318,8 +316,7 @@ namespace ParityAnalyser.Sim
                 (note) => note.RightOuterLane() && note.TopRow(),
                 ];
             //bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
-            shouldResetDueToInline = group.endNote.TopRow();
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 90f && group.Satisfies(topRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 90f && group.Satisfies(topRowReset) && (shouldResetDueToAngle || shouldResetDueToRoll))
             {
                 yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
                 yield break;
@@ -359,7 +356,6 @@ namespace ParityAnalyser.Sim
                 }
             }
 
-            // TODO: reset when the only resting position available is covered by bombs, all other slots are walls
 
         }
 
@@ -377,9 +373,12 @@ namespace ParityAnalyser.Sim
                 // Maybe should make a function to combine single note and slider desired angle
                 float endAngle = hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
                     wristAngle + roll + swingOffset;
-                if (endAngle - swingOffset > maxCCAngle || endAngle - swingOffset < maxClockwiseAngle/*!hasReset && Mathf.Sign(roll) == Mathf.Sign(wristAngle) && roll != 0f*/)
+                // Wrist angle exceeds natural rotation limits or why would you reset to rotate your wrist past 90 degrees
+                float nextAngle = endAngle - swingOffset;
+                bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
+                if (unnatural)
                 {
-                    yield return Reset(bomb1, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{startAngle} - {endAngle - swingOffset}");
+                    yield return Reset(bomb1, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}");
                     goto Start;
                 }
                 //Debug.Log($"{startAngle} - {endAngle}");
@@ -515,6 +514,10 @@ namespace ParityAnalyser.Sim
 
         protected abstract float maxClockwiseAngle { get; }
         protected abstract float maxCCAngle { get; }
+        protected abstract float preferredRollDirection { get; }
+
+        public bool RollsComfortably(float roll) => (wristAngle != 0f && preferredRollDirection == Mathf.Sign(roll))
+                                                || (wristAngle == 0f && roll == 0f);
 
         public float wristAngle { get; protected set; }
 

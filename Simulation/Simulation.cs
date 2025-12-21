@@ -38,6 +38,7 @@ namespace ParityAnalyser.Sim
 
         public void Run()
         {
+            Debug.Log("-------------- Left Saber --------------");
             if (leftSaber != null)
             {
                 if (ParityAnalyser.options.renderLeftBombGroups)
@@ -59,6 +60,8 @@ namespace ParityAnalyser.Sim
                 }
 
             }
+            Debug.Log("----------------------------------------\n");
+            Debug.Log("-------------- Right Saber --------------");
             if (rightSaber != null)
             {
                 if (ParityAnalyser.options.renderRightBombGroups)
@@ -82,6 +85,7 @@ namespace ParityAnalyser.Sim
                 //}
 
             }
+            Debug.Log("-----------------------------------------\n");
         }
 
         private RightSaber rightSaber = null;

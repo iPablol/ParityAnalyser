@@ -21,6 +21,7 @@ namespace ParityAnalyser.Sim
         protected override float maxClockwiseAngle => -180f;
 
         protected override float maxCCAngle => 180f;
+        protected override float preferredRollDirection => Mathf.Sign(maxCCAngle);
 
         protected override Vector2 restPoint { get; } = new Vector2(1f, 1f);
 

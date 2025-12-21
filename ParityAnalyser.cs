@@ -96,8 +96,8 @@ namespace ParityAnalyser
             RenderParities(sim.redParities, Color.red, options.renderLeftParityOutlines, options.renderLeftParitySabers);
             RenderParities(sim.blueParities, Color.blue, options.renderRightParityOutlines, options.renderRightParitySabers);
 
-            if (options.animateLeftParities) AnimateParities(sim.blueParities, Color.blue);
-            if (options.animateRightParities) AnimateParities(sim.redParities, Color.red);
+            if (options.animateLeftParities) AnimateParities(sim.redParities, Color.red);
+            if (options.animateRightParities) AnimateParities(sim.blueParities, Color.blue);
         }
 
         internal void AnimateParities(List<SaberSnapshot> parities, Color handColor)
