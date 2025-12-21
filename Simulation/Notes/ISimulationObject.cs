@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ParityAnalyser
+namespace ParityAnalyser.Sim
 {
     public interface ISimulationObject
     {

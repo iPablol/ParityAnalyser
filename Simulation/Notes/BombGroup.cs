@@ -5,9 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.UI;
 using BombCondition = System.Func<Beatmap.Base.BaseNote, bool>;
 
-namespace ParityAnalyser
+namespace ParityAnalyser.Sim
 {
     public record struct BombGroup(ISimulationObject prevObject, List<Note> bombs, ISimulationObject nextObject) : ISimulationObject
     {
@@ -16,6 +17,10 @@ namespace ParityAnalyser
         public float Time() => prevObject.FirstNote().JsonTime;
         public BaseNote FirstNote() => prevObject.FirstNote();
         public BaseNote LastNote() => nextObject.LastNote();
+
+        public bool singleBeat => (from bomb in bombs
+                                   group bomb by bomb.Time() into g
+                                   select g.Key).Count() <= 1;
 
         public IEnumerable<BaseNote> Notes() => prevObject.Notes().Concat(nextObject.Notes());
         public float minX => (from bomb in bombs.ConvertAll<BaseNote>(bomb => bomb.Value) orderby bomb.PosX ascending select bomb.PosX).First();
@@ -29,12 +34,33 @@ namespace ParityAnalyser
 
         public bool All(BombCondition predicate) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).All(predicate);
         public bool Any(BombCondition predicate) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).Any(predicate);
-        
+
 
         public IEnumerable<BaseNote> After(float jsonTime) => this.Where(bomb => bomb.JsonTime >= jsonTime);
         public IEnumerable<BaseNote> Where(BombCondition condition) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).Where(condition);
 
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.ConvertAll<BaseNote>(note => note.Value).Append(nextObject.FirstNote()).ToList(), false);
+
+        public IEnumerable<BombCluster> GetClusters()
+        {   
+            if (singleBeat)
+            {
+                yield return new BombCluster(bombs);
+                yield break;
+            }
+            var singleBeatClusters = (from bomb in bombs
+                                      group bomb by bomb.Time() into cluster
+                                      orderby cluster.First().Time()
+                                      select new BombCluster(cluster.ToList())).ToList();
+            foreach (var cluster in singleBeatClusters) yield return cluster;
+            foreach ((BombCluster cluster1, BombCluster cluster2) in new OverlappingPairIterator<BombCluster>(singleBeatClusters))
+            {
+                // Merge clusters and filter for unique position
+                yield return new BombCluster((from bomb in cluster1.notes.Concat(cluster2.notes)
+                                              group bomb by bomb.FirstNote().Position() into g
+                                              select g.First()).ToList());
+            }
+        }
 
         public bool Satisfies(List<BombCondition> conditions)
         {

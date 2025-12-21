@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Parity = ParityAnalyser.Parity;
 
-namespace ParityAnalyser
+namespace ParityAnalyser.Sim
 {
 
     // Pink diamond: beat 134 full dot stack direction should go down (check when fixed bombs pushing saber into other bombs)

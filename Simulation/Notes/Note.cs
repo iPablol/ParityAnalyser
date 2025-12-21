@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ParityAnalyser
+namespace ParityAnalyser.Sim
 {
     // Wrapper class for BaseNote to implement ISimulationObject
     public class Note(BaseNote note) : ISimulationObject

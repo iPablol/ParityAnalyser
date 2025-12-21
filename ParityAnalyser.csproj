@@ -75,14 +75,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Simulation\BombGroup.cs" />
-    <Compile Include="Simulation\ISimulationObject.cs" />
-    <Compile Include="Simulation\LeftSaber.cs" />
-    <Compile Include="Simulation\Note.cs" />
-    <Compile Include="Simulation\RightSaber.cs" />
-    <Compile Include="Simulation\Saber.cs" />
+    <Compile Include="Simulation\Notes\BombCluster.cs" />
+    <Compile Include="Simulation\Notes\BombGroup.cs" />
+    <Compile Include="Simulation\Notes\ISimulationObject.cs" />
+    <Compile Include="Simulation\Sabers\LeftSaber.cs" />
+    <Compile Include="Simulation\Notes\Note.cs" />
+    <Compile Include="Simulation\Sabers\RightSaber.cs" />
+    <Compile Include="Simulation\Sabers\Saber.cs" />
     <Compile Include="Simulation\Simulation.cs" />
-    <Compile Include="Simulation\SliderGroup.cs" />
+    <Compile Include="Simulation\Notes\SliderGroup.cs" />
     <Compile Include="UI\Options.cs" />
     <Compile Include="UI\Outline.cs" />
     <Compile Include="ParityAnalyser.cs" />
