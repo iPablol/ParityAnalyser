@@ -13,67 +13,77 @@ namespace ParityAnalyser.Sim
 {
     public class Simulation
     {
-        public static readonly float bombRadius = 0.75f;
+        public static readonly float bombRadius = 0.48f;
         public static readonly float sliderThreshold = 1 / 11.5f; // Thanks yabje for those 1/12 sliders
         public Simulation(List<BaseNote> notes)
         {
             // TODO: Check starting parity
-            this.leftSaber = new LeftSaber((from note in notes
-                                           where note.Type == (int)NoteType.Red || note.Type == (int)NoteType.Bomb
-                                           orderby note.JsonTime ascending,
-                                                   note.Type == (int)NoteType.Bomb ? 0 : 1
-                                           select note).ToList());
-            this.rightSaber = new RightSaber((from note in notes
+            if (notes.Any(note => note.Type == (int)NoteType.Red))
+            {
+                this.leftSaber = new LeftSaber((from note in notes
+                                               where note.Type == (int)NoteType.Red || note.Type == (int)NoteType.Bomb
+                                               orderby note.JsonTime ascending,
+                                                       note.Type == (int)NoteType.Bomb ? 0 : 1
+                                               select note).ToList());
+            }
+            if (notes.Any(note => note.Type == (int)NoteType.Blue))
+            {
+                this.rightSaber = new RightSaber((from note in notes
                                               where note.Type == (int)NoteType.Blue || note.Type == (int)NoteType.Bomb
                                               orderby note.JsonTime ascending,
                                                       note.Type == (int)NoteType.Bomb ? 0 : 1
                                               select note).ToList());
+            }
         }
 
         public void Run()
         {
-
-            //leftSaber.RenderBombGroups();
-            rightSaber.RenderBombGroups();
-
-            foreach (SaberSnapshot s in this.leftSaber.FirstSwing())
+            if (leftSaber != null)
             {
-                redParities.Add(s);
-            }
-            foreach ((ISimulationObject note1, ISimulationObject note2) in this.leftSaber.GetPairs())
-            {
-                foreach (SaberSnapshot snap in this.leftSaber.Swing(note1, note2))
+                leftSaber.RenderBombGroups();
+                
+
+                foreach (SaberSnapshot s in this.leftSaber.FirstSwing())
                 {
-                    redParities.Add(snap);
+                    redParities.Add(s);
                 }
-            }
-
-            //redParities.AddRange(leftSaber.resetSnapshots);
-            //redParities = redParities.OrderByDescending(x => x.note.JsonTime).Reverse().ToList();
-
-            foreach (SaberSnapshot s in this.rightSaber.FirstSwing())
-            {
-                blueParities.Add(s);
-            }
-            foreach ((ISimulationObject note1, ISimulationObject note2) in this.rightSaber.GetPairs())
-            {
-                foreach (SaberSnapshot snap in this.rightSaber.Swing(note1, note2))
+                foreach ((ISimulationObject note1, ISimulationObject note2) in this.leftSaber.GetPairs())
                 {
-                    blueParities.Add(snap);
+                    //Debug.Log($"Prev: {note1.GetType()}, Next: {note2.GetType()}");
+                    //Debug.Log("");
+                    foreach (SaberSnapshot snap in this.leftSaber.Swing(note1, note2))
+                    {
+                        redParities.Add(snap);
+                    }
                 }
+
             }
+            if (rightSaber != null)
+            {
+                //rightSaber.RenderBombGroups(true, true);
 
-            //foreach (SaberSnapshot snap in blueParities)
-            //{
-            //    Debug.Log(snap);
-            //}
+                foreach (SaberSnapshot s in this.rightSaber.FirstSwing())
+                {
+                    blueParities.Add(s);
+                }
+                foreach ((ISimulationObject note1, ISimulationObject note2) in this.rightSaber.GetPairs())
+                {
+                    foreach (SaberSnapshot snap in this.rightSaber.Swing(note1, note2))
+                    {
+                        blueParities.Add(snap);
+                    }
+                }
 
-            //blueParities.AddRange(rightSaber.resetSnapshots);
-            //blueParities = blueParities.OrderByDescending(x => x.note.JsonTime).Reverse().ToList();
+                //foreach (SaberSnapshot snap in blueParities)
+                //{
+                //    Debug.Log(snap);
+                //}
+
+            }
         }
 
-        private RightSaber rightSaber;
-        private LeftSaber leftSaber;
+        private RightSaber rightSaber = null;
+        private LeftSaber leftSaber = null;
 
         public List<SaberSnapshot> blueParities { get; private set; } = [];
         public List<SaberSnapshot> redParities { get; private set; } = [];

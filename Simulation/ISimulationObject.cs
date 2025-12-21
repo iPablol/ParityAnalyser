@@ -11,7 +11,7 @@ namespace ParityAnalyser
     {
         public float Time();
 
-        public BaseNote GetNote();
+        public BaseNote FirstNote();
 
         public BaseNote LastNote();
 

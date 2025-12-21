@@ -147,18 +147,18 @@ namespace ParityAnalyser
         {
             GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
 
-            sphere.transform.localScale = Vector3.one * radius;
+            sphere.transform.localScale = Vector3.one * radius * 2f;
 
             var renderer = sphere.GetComponent<MeshRenderer>();
             renderer.material = new Material(Shader.Find("Unlit/Color"));
             renderer.material.color = color;
 
             var atc = ParityAnalyser.atc;
-            sphere.transform.position = pos + sync.Offset();
+            sphere.transform.position = pos + (sync?.Offset() ?? default);
             Action update = () =>
             {
                 float time = atc.CurrentJsonTime;
-                sphere.transform.position = pos + sync.Offset();
+                sphere.transform.position = pos + (sync?.Offset() ?? default);
             };
             ParityAnalyser.AddRender(sphere, update);
 

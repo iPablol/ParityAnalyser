@@ -88,11 +88,16 @@ namespace ParityAnalyser
 
 
             // Sector boundary intersects
-            if (SegmentIntersectsCircle(position, boundaryA, bombPosition, Simulation.bombRadius) || SegmentIntersectsCircle(position, boundaryB, bombPosition, Simulation.bombRadius))
+            bool boundaryAIntersects = SegmentIntersectsCircle(position, boundaryA, bombPosition, Simulation.bombRadius), boundaryBIntersects = SegmentIntersectsCircle(position, boundaryB, bombPosition, Simulation.bombRadius);
+            if (boundaryAIntersects || boundaryBIntersects)
             {
                 if (debug)
                 {
-                    Debug.Log("Boundary intersection");
+                    //Debug.Log("Boundary intersection");
+                    //Debug.Log($"Position: {position}");
+                    //Debug.Log($"Boundary A: {boundaryA} ({boundaryAIntersects}), Boundary B: {boundaryB} ({boundaryBIntersects})");
+                    //Debug.Log($"Bomb position: {bombPosition}");
+                    //Debug.Log("");
                 }
                 return true;
             }

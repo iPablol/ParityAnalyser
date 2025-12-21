@@ -11,7 +11,7 @@ using Parity = ParityAnalyser.Parity;
 namespace ParityAnalyser
 {
 
-    // TODO: check diagonal stacks
+    // Pink diamond: beat 134 full dot stack direction should go down (check when fixed bombs pushing saber into other bombs)
     public record struct SliderGroup(BaseNote previousNote, List<BaseNote> slider) : ISimulationObject
     {
         public bool isFirstSwing => previousNote == null;
@@ -27,7 +27,7 @@ namespace ParityAnalyser
         public bool isDotStack => isStack && slider.All(note => note.CutDirection == (int)NoteDirection.ANY);
 
         public float Time() => slider.First().JsonTime;
-        public BaseNote GetNote() => slider.First();
+        public BaseNote FirstNote() => slider.First();
         public BaseNote LastNote() => slider.Last();
 
         public IEnumerable<BaseNote> Notes() => slider;

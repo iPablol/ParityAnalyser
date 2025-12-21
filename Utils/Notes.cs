@@ -21,6 +21,7 @@ namespace ParityAnalyser
         public static float zPos(this BaseNote note) => (note.SongBpmTime - Shader.GetGlobalFloat("_SongTime")) * EditorScaleController.EditorScale;
 
         public static Vector2 Position(this BaseNote note) => new Vector2(note.PosX, note.PosY);
+        public static Vector3 Position3(this BaseNote note) => new Vector3(note.PosX, note.PosY, note.zPos());
 
         public static bool BottomRow(this BaseNote note) => note.PosY == 0;
         public static bool MiddleRow(this BaseNote note) => note.PosY == 1;

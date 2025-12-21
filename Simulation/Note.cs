@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace ParityAnalyser
 {
-    internal class Note(BaseNote note) : ISimulationObject
+    // Wrapper class for BaseNote to implement ISimulationObject
+    public class Note(BaseNote note) : ISimulationObject
     {
         public BaseNote Value = note;
 
@@ -16,7 +17,7 @@ namespace ParityAnalyser
 
         public float Time() => Value.JsonTime;
 
-        public BaseNote GetNote() => Value;
+        public BaseNote FirstNote() => Value;
         public BaseNote LastNote() => Value;
 
         public IEnumerable<BaseNote> Notes() => [Value];
