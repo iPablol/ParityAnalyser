@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Remoting.Messaging;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEngine;
 using static Beatmap.V4.V4CommonData;
@@ -205,6 +206,22 @@ namespace ParityAnalyser
 
 
             return angle;
+        }
+
+        public static string CamelCaseToWords(this string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return input;
+
+            // Insert space before capital letters that follow lowercase letters
+            var result = Regex.Replace(
+                input,
+                @"(?<=[a-z])(?=[A-Z])",
+                " "
+            );
+
+            // Capitalize first letter
+            return char.ToUpper(result[0]) + result.Substring(1);
         }
 
     }

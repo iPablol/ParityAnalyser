@@ -132,7 +132,7 @@ namespace ParityAnalyser
             return Quaternion.Slerp(a, b, w * t);
         }
 
-        public static Quaternion AngleSpikeSlerpXZ( Quaternion a, Quaternion b, float t, float xAngleWidth = 150f, float zAngleWidth = 10f)
+        public static Quaternion AngleSpikeSlerpXZ( Quaternion a, Quaternion b, float t, float xAngleWidth = 180f, float zAngleWidth = 10f)
         {
             t = Mathf.Clamp01(t);
 

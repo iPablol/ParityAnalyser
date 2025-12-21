@@ -43,158 +43,34 @@ namespace ParityAnalyser
             _menu = new GameObject("Automapper Menu");
             _menu.transform.parent = parent.transform;
 
-            AttachTransform(_menu, 50, 50, 1, 1, 0, 0, 1, 1);
+            AttachTransform(_menu, 280, 200, 1, 1, 0, 0, 1, 1);
 
             Image image = _menu.AddComponent<Image>();
             image.sprite = PersistentUI.Instance.Sprites.Background;
             image.type = Image.Type.Sliced;
             image.color = new Color(0.24f, 0.24f, 0.24f);
 
-            //AddLabel(_menu.transform, "Light", "Light", new Vector2(-70, -20));
-            //AddCheckbox(_menu.transform, "Fused", "Fused Only", new Vector2(-60, -215), Options.Mapper.GenerateFused, (check) =>
-            //{
-            //    Options.Mapper.GenerateFused = check;
-            //});
-            //AddCheckbox(_menu.transform, "Line", "Randomize Line", new Vector2(-125, -215), Options.Mapper.RandomizeLine, (check) =>
-            //{
-            //    Options.Mapper.RandomizeLine = check;
-            //});
-            //AddCheckbox(_menu.transform, "Bottom", "Bottom Row Only", new Vector2(-60, -190), Options.Mapper.BottomRowOnly, (check) =>
-            //{
-            //    Options.Mapper.BottomRowOnly = check;
-            //});
-            //AddCheckbox(_menu.transform, "UpDown", "Up and Down Only", new Vector2(20, -190), Options.Mapper.UpDownOnly, (check) =>
-            //{
-            //    Options.Mapper.UpDownOnly = check;
-            //});
-            //AddCheckbox(_menu.transform, "Use Chroma", "Use Chroma", new Vector2(20, -25), Options.Light.Chroma, (check) =>
-            //{
-            //    Options.Light.Chroma = check;
-            //});
-            //AddCheckbox(_menu.transform, "Ignore Bombs", "Ignore Bombs", new Vector2(20, -55), Options.Light.IgnoreBomb, (check) =>
-            //{
-            //    Options.Light.IgnoreBomb = check;
-            //});
-            //AddCheckbox(_menu.transform, "Nerf Strobes", "Nerf Strobes", new Vector2(20, -90), Options.Light.NerfStrobes, (check) =>
-            //{
-            //    Options.Light.NerfStrobes = check;
-            //});
-            //AddCheckbox(_menu.transform, "Use Boost Events", "Use Boost Events", new Vector2(20, -125), Options.Light.UseBoostColor, (check) =>
-            //{
-            //    Options.Light.UseBoostColor = check;
-            //});
+            AddButton(_menu.transform, "Analyse", "Analyse", new Vector2(60, -80), _plugin.Analyse);
+            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(60, -120), ParityAnalyser.ClearRenders);
+            float[] yPos = new float[3] { -25, -25, -25 };
+            foreach (FieldInfo option in typeof(Options).GetFields().Where(f => f.FieldType == typeof(bool)))
+            {
+                bool isRight = option.Name.ToLower().Contains("right");
+                bool isLeft = option.Name.ToLower().Contains("left");
 
-            //AddCheckbox(_menu.transform, "Wrist Limiter", "Wrist Limiter", new Vector2(20, -160), Options.Mapper.Limiter, (check) =>
-            //{
-            //    Options.Mapper.Limiter = check;
-            //});
-            //AddCheckbox(_menu.transform, "Timing Only", "Timing Only", new Vector2(-60, -160), Options.Mapper.GenerateAsTiming, (check) =>
-            //{
-            //    Options.Mapper.GenerateAsTiming = check;
-            //});
+                int column = isLeft ? 0 : isRight ? 1 : 2;
 
-            //// Swap, Speed, Boost, BPM
-            //AddLabel(_menu.transform, "Audio", "Audio", new Vector2(100, -20));
-            //AddLabel(_menu.transform, "Audio", "Audio Range", new Vector2(-10, -210));
-            //AddLabel(_menu.transform, "Map", "Map", new Vector2(-150, -170));
-            //AddTextInput(_menu.transform, "Minimum", "Min", new Vector2(35, -210), Options.Mapper.MinRange.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.MinRange = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "Max", "Max", new Vector2(110, -210), Options.Mapper.MaxRange.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.MaxRange = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "Indistinguishable Range", "Indistinguishable Range", new Vector2(110, -190), Options.Mapper.IndistinguishableRange.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.IndistinguishableRange = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "Color Swap Speed", "Speed", new Vector2(-90, -50), Options.Light.ColorSwap.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Light.ColorSwap = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "Color Offset", "Offset", new Vector2(-90, -85), Options.Light.ColorOffset.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Light.ColorOffset = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "Color Swap Boost", "Boost", new Vector2(-90, -120), Options.Light.ColorBoostSwap.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Light.ColorBoostSwap = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "OnsetSensitivity", "Onset Sensitivity", new Vector2(110, -155), Options.Mapper.OnsetSensitivity.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.OnsetSensitivity = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "DoubleThreshold", "Double Threshold", new Vector2(110, -120), Options.Mapper.DoubleThreshold.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.DoubleThreshold = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "MaxSpeed", "Max Speed", new Vector2(110, -50), Options.Mapper.MaxSpeed.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.MaxSpeed = res;
-            //    }
-            //});
-            //AddTextInput(_menu.transform, "MaxDoubleSpeed", "Max Double Speed", new Vector2(110, -85), Options.Mapper.MaxDoubleSpeed.ToString(), (value) =>
-            //{
-            //    float res;
-            //    if (float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, out res))
-            //    {
-            //        Options.Mapper.MaxDoubleSpeed = res;
-            //    }
-            //});
+                float xPos = isLeft ? -80 : (isRight ? 0 : 80);
+                AddCheckbox(_menu.transform, option.Name.CamelCaseToWords(), option.Name.CamelCaseToWords(), new Vector2(xPos, yPos[column]), (bool)option.GetValue(ParityAnalyser.options), 
+                    (check) =>
+                    {
+                        option.SetValue(ParityAnalyser.options, check);
+                        ParityAnalyser.options.Save();
+                    });
+                yPos[column] -= 40;
+            }
 
-            //// Button
-            //AddLabel(_menu.transform, "Algorithm", "Algorithm", new Vector2(-150, -20));
-            //AddButton(_menu.transform, "GenAudio", "Audio", new Vector2(-150, -50), () =>
-            //{
-            //    _automapper.Audio();
-            //});
-            //AddButton(_menu.transform, "GenMap", "Map", new Vector2(-150, -85), () =>
-            //{
-            //    _automapper.Converter();
-            //});
-            //AddButton(_menu.transform, "GenLight", "Light", new Vector2(-150, -120), () =>
-            //{
-            //    _automapper.Light();
-            //});
 
-            AddButton(_menu.transform, "Analyse", "Analyse", new Vector2(0, -20), _plugin.Analyse);
-            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(0, -40), ParityAnalyser.ClearRenders);
 
             _menu.SetActive(false);
             _extensionBtn.Click = () =>
@@ -203,8 +79,10 @@ namespace ParityAnalyser
             };
         }
 
-        // i ended up copying Top_Cat's CM-JS UI helper, too useful to make my own tho
-        // after askin TC if it's one of the only way, he let me use this
+        // I ended up copying Top_Cat's CM-JS UI helper, too useful to make my own tho
+        // after askin TC if it's one of the only way, he let me use this.
+        
+        // Uhhm, I didn't notice this comment. Thanks Automapper!
         private void AddButton(Transform parent, string title, string text, Vector2 pos, UnityAction onClick)
         {
             var button = Object.Instantiate(PersistentUI.Instance.ButtonPrefab, parent);

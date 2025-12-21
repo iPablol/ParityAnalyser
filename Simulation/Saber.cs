@@ -365,7 +365,8 @@ namespace ParityAnalyser.Sim
 
         protected virtual IEnumerable<SaberSnapshot> ExploreBombGroup(BombGroup group, float startTime, float endTime)
         {
-            bool debug = this is RightSaber;
+            bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
+                        (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
             Vector3 originalPos = transform.position;
             // TODO: group contiguous bombs in the same beat an the next beat to make rects
             foreach ((BaseNote bomb1, BaseNote bomb2) in group.GetPairs())

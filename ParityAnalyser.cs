@@ -15,6 +15,7 @@ using ParityAnalyser.Sim;
 using Beatmap.Containers;
 using Beatmap.Animations;
 
+
 namespace ParityAnalyser
 {
     [Plugin("ParityAnalyser")]
@@ -35,12 +36,14 @@ namespace ParityAnalyser
         internal static List<GameObject> renders = [];
         internal static List<Action> renderUpdaters = [];
 
+        internal static Options options = new();
+
         [Init]
         private void Init()
         {
             SceneManager.sceneLoaded += SceneLoaded;
             _ui = new UI(this);
-
+            options = Options.Load();
         }
 
         
@@ -86,13 +89,15 @@ namespace ParityAnalyser
 
         public void Analyse()
         {
+            ClearRenders();
             Simulation sim = new Simulation(noteGrid.MapObjects.Where(x => x is BaseNote).ToList());
             sim.Run();
 
-            RenderParities(sim.redParities, Color.red, true, true);
-            RenderParities(sim.blueParities, Color.blue, true, true);
-            AnimateParities(sim.blueParities, Color.blue);
-            AnimateParities(sim.redParities, Color.red);
+            RenderParities(sim.redParities, Color.red, options.renderLeftParityOutlines, options.renderLeftParitySabers);
+            RenderParities(sim.blueParities, Color.blue, options.renderRightParityOutlines, options.renderRightParitySabers);
+
+            if (options.animateLeftParities) AnimateParities(sim.blueParities, Color.blue);
+            if (options.animateRightParities) AnimateParities(sim.redParities, Color.red);
         }
 
         internal void AnimateParities(List<SaberSnapshot> parities, Color handColor)

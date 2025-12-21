@@ -40,7 +40,8 @@ namespace ParityAnalyser.Sim
         {
             if (leftSaber != null)
             {
-                leftSaber.RenderBombGroups();
+                if (ParityAnalyser.options.renderLeftBombGroups)
+                    leftSaber.RenderBombGroups(true, true);
                 
 
                 foreach (SaberSnapshot s in this.leftSaber.FirstSwing())
@@ -60,7 +61,8 @@ namespace ParityAnalyser.Sim
             }
             if (rightSaber != null)
             {
-                //rightSaber.RenderBombGroups(true, true);
+                if (ParityAnalyser.options.renderRightBombGroups)
+                    rightSaber.RenderBombGroups(true, true);
 
                 foreach (SaberSnapshot s in this.rightSaber.FirstSwing())
                 {
