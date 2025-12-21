@@ -43,7 +43,7 @@ namespace ParityAnalyser.Sim
          *  select closest angle to wrist angle
          * */
 
-        public void OrderFullDotStack(Vector2 saberPos, float wristAngle, Parity parity)
+        public SliderGroup OrderFullDotStack(Vector2 saberPos, float wristAngle, Parity parity)
         {
             if (isFullyHorizontal)
             {
@@ -54,7 +54,7 @@ namespace ParityAnalyser.Sim
                 float toNeg90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, -90f));
 
                 bool closerTo90 = to90 < toNeg90;
-                Order(GetOrder(parity, closerTo90 ? -90f : 90f));
+                return Order(GetOrder(parity, closerTo90 ? 90f : -90f));
             }
             else
             {
@@ -68,11 +68,11 @@ namespace ParityAnalyser.Sim
                 float closer180 = Mathf.Min(Mathf.Abs(to180), Mathf.Abs(toNeg180));
                 bool closerTo180 = closer180 < to0;
 
-                Order(GetOrder(parity, closerTo180 ? 180f : 0f));
+                return Order(GetOrder(parity, closerTo180 ? 180f : 0f));
             }
         }
 
-        private float GetAngle(Parity parity)
+        public StackOrder GetOrder()
         {
             bool horizontal = slider.Any(note => note.CutDirection == (int)NoteDirection.LEFT ||  note.CutDirection == (int)NoteDirection.RIGHT);
             if (horizontal)
@@ -80,11 +80,11 @@ namespace ParityAnalyser.Sim
                 bool right = slider.Any(note => note.CutDirection == (int)NoteDirection.RIGHT);
                 if (right)
                 {
-                    return parity.Bool() ? -90f : 90f;
+                    return StackOrder.LeftToRight;
                 }
                 else
                 {
-                    return parity.Bool() ? 90f : -90f;
+                    return StackOrder.RightToLeft;
                 }
             }
             else
@@ -93,35 +93,16 @@ namespace ParityAnalyser.Sim
                 || note.CutDirection == (int)NoteDirection.DOWN_RIGHT || note.CutDirection == (int)NoteDirection.DOWN_LEFT);
                 if (down)
                 {
-                    return parity.Bool() ? 0f : 180f;
+                    return StackOrder.TopToBottom;
                 }
                 else
                 {
-                    return parity.Bool() ? 180f : -0f;
+                    return StackOrder.BottomToTop;
                 }
             }
         }
 
-        public StackOrder GetOrder(Parity parity) => parity switch
-        {
-            Parity.FOREHAND => GetAngle(parity) switch
-            {
-                >= -45f and <= 45f => StackOrder.TopToBottom,
-                -90f => StackOrder.RightToLeft,
-                90f => StackOrder.LeftToRight,
-                <= -135f or >= 135f => StackOrder.BottomToTop,
-                _ => StackOrder.TopToBottom
-            },
-            Parity.BACKHAND => GetAngle(parity) switch
-            {
-                >= -45f and <= 45f => StackOrder.BottomToTop,
-                -90f => StackOrder.LeftToRight,
-                90f => StackOrder.RightToLeft,
-                <= -135f or >= 135f => StackOrder.TopToBottom,
-                _ => StackOrder.TopToBottom
-            }
-        };
-
+        // Full dot stacks are resolved at simulation time
         public StackOrder GetOrder(Parity parity, float angle) => parity switch
         {
             Parity.FOREHAND => angle switch
@@ -142,34 +123,42 @@ namespace ParityAnalyser.Sim
             }
         };
 
-        public void Order(StackOrder order)
+        public SliderGroup Order(StackOrder order) => order switch
         {
-            switch (order)
+
+            StackOrder.TopToBottom =>
+
+            this with
             {
-                case StackOrder.TopToBottom:
-                    slider = slider.OrderByDescending(note => note.PosY).ToList();
-                    break;
-                case StackOrder.BottomToTop:
-                    slider = slider.OrderByDescending(note => note.PosY).Reverse().ToList();
-                    break;
-                case StackOrder.LeftToRight:
-                    slider = slider.OrderByDescending(note => note.PosX).ToList();
-                    break;
-                case StackOrder.RightToLeft:
-                    slider = slider.OrderByDescending(note => note.PosX).Reverse().ToList();
-                    break;
-                default:
-                    break;
-            }
-        }
+                slider = slider.OrderByDescending(note => note.PosY).ToList()
 
+            },
+            StackOrder.BottomToTop => this with
+            {
+                slider = slider.OrderByDescending(note => note.PosY).Reverse().ToList()
+            },
+            StackOrder.LeftToRight => this with
+            {
+                slider = slider.OrderByDescending(note => note.PosX).Reverse().ToList()
+            },
+            StackOrder.RightToLeft => this with
+            {
+                slider = slider.OrderByDescending(note => note.PosX).ToList()
+            },
+            _ => this
+        };
     }
+        
 
-    public enum StackOrder
-    {
-        TopToBottom,
-        BottomToTop,
-        LeftToRight,
-        RightToLeft
-    }
+        
+
 }
+
+public enum StackOrder
+{
+    TopToBottom,
+    BottomToTop,
+    LeftToRight,
+    RightToLeft
+}
+

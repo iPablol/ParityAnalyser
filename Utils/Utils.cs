@@ -21,9 +21,17 @@ namespace ParityAnalyser
     public class OverlappingPairIterator<T> : IEnumerable<(T, T)>
     {
         private readonly List<T> _list;
+        private SingleItemBehaviour behaviour;
         public bool includeSingle
         {
             get; private set;
+        }
+
+        public OverlappingPairIterator(IEnumerable<T> list, bool includeSingle = false, SingleItemBehaviour behaviour = SingleItemBehaviour.PAIR_WITH_FIRST)
+        {
+            _list = list.ToList();
+            this.includeSingle = includeSingle;
+            this.behaviour = behaviour;
         }
 
         public OverlappingPairIterator(List<T> list, bool includeSingle = false)
@@ -40,11 +48,23 @@ namespace ParityAnalyser
             }
             if (includeSingle)
             {
-                yield return (_list.Last(), _list.First());
+                yield return (_list.Last(), behaviour switch
+                {
+                    SingleItemBehaviour.PAIR_WITH_FIRST => _list.First(),
+                    SingleItemBehaviour.PAIR_WITH_LAST => _list.Last(),
+                    SingleItemBehaviour.PAIR_WITH_DEFAULT => default
+                });
             }
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public enum SingleItemBehaviour
+        {
+            PAIR_WITH_FIRST,
+            PAIR_WITH_LAST,
+            PAIR_WITH_DEFAULT,
+        }
     }
 
 	//public class SimulationIterator : IEnumerable<(object, object)> 
@@ -163,6 +183,42 @@ namespace ParityAnalyser
             };
             ParityAnalyser.AddRender(sphere, update);
 
+        }
+
+        public static void RenderRect(Rect r, Color color, float width = 0.05f, BaseNote sync = null)
+        {
+            Vector2 tl = new(r.x, r.y), tr = tl + new Vector2(r.width, 0), bl = tl + new Vector2(0, r.height), br = tl + new Vector2(r.width, r.height);
+            GameObject renderer = new GameObject("rect");
+            LineRenderer lr = renderer.AddComponent<LineRenderer>();
+            lr.positionCount = 5;
+
+            Gradient g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(color, 0f),
+                    new GradientColorKey(color, 1f)
+                },
+                new[]
+                {
+                    new GradientAlphaKey(1f, 1f),
+                    new GradientAlphaKey(1f, 1f)
+                }
+            );
+
+            lr.colorGradient = g;
+            lr.startWidth = lr.endWidth = width;
+            lr.material = new Material(Shader.Find("Sprites/Default"));
+
+            var atc = ParityAnalyser.atc;
+            lr.SetPositions([(Vector3)tl + sync.Offset(), (Vector3)tr + sync.Offset(), (Vector3)br + sync.Offset(), (Vector3)bl + sync.Offset(), (Vector3)tl + sync.Offset()]);
+            Action update = () =>
+            {
+                float time = atc.CurrentJsonTime;
+                lr.SetPositions([(Vector3)tl + sync.Offset(), (Vector3)tr + sync.Offset(), (Vector3)br + sync.Offset(), (Vector3)bl + sync.Offset(), (Vector3)tl + sync.Offset()]);
+
+            };
+            ParityAnalyser.AddRender(renderer, update);
         }
 
         public static float Cross(this Vector2 a, Vector2 b) => (a.x * b.y) - (a.y * b.x);

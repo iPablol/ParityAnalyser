@@ -9,9 +9,16 @@ using static Beatmap.V4.V4CommonData;
 
 namespace ParityAnalyser.Sim
 {
-    public record struct BombCluster(List<Note> notes)
+    public record struct BombCluster(List<Note> notes, float time)
     {
-        public BaseNote aBomb => notes.First()?.Value;
+        public BaseNote aBomb
+        {
+            get
+            {
+                float time = this.time;
+                return (from bomb in notes where bomb.Time() == time select bomb).First();
+            }
+        }
 
         public IEnumerable<Rect> GetHitbox()
         {
@@ -65,11 +72,7 @@ namespace ParityAnalyser.Sim
         {
             foreach (Rect r in GetHitbox())
             {
-                Vector2 tl = new(r.x, r.y), tr = tl + new Vector2(r.width, 0), bl = tl + new Vector2(0, r.height), br = tl + new Vector2(r.width, r.height);
-                Utils.RenderLine(tl, tr, Color.green, Color.green, sync: aBomb);
-                Utils.RenderLine(tr, br, Color.green, Color.green, sync: aBomb);
-                Utils.RenderLine(br, bl, Color.green, Color.green, sync: aBomb);
-                Utils.RenderLine(bl, tl, Color.green, Color.green, sync: aBomb);
+                Utils.RenderRect(r, Color.green, sync: aBomb);
             }
         }
     }

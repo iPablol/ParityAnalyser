@@ -48,6 +48,14 @@ namespace ParityAnalyser.Sim
             
 
             List<ISimulationObject> sliderGroups = ExtractSliderGroups(relevantNotes).ToList();
+            for (int i = 0; i < sliderGroups.Count; i++)
+            {
+                SliderGroup group = (SliderGroup)sliderGroups[i];
+                if (group.isStack && !group.isDotStack)
+                {
+                    sliderGroups[i] = group.Order(group.GetOrder());
+                }
+            }
 
             // Replace sliders
             List<ISimulationObject> currentNotes = (from simObject in
@@ -95,15 +103,15 @@ namespace ParityAnalyser.Sim
             {
                 foreach (var group in this.bombGroups)
                 {
-                    Debug.Log("");
-                    Debug.Log("Group " + group.Time());
-                    List<BombCluster> clusters = group.GetClusters().ToList();
-                    foreach (var cluster in clusters)
-                    {
-                        Debug.Log(cluster.GetHitbox().Count());
-                        cluster.Render();
-                    }
-                    Debug.Log("");
+                    //Debug.Log("");
+                    //Debug.Log("Group " + group.Time());
+                    //List<BombCluster> clusters = group.GetClusters().ToList();
+                    //foreach (var cluster in clusters)
+                    //{
+                    //    Debug.Log(cluster.GetHitbox().Count());
+                    //    //cluster.Render();
+                    //}
+                    //Debug.Log("");
                 }
             }
 
@@ -146,16 +154,9 @@ namespace ParityAnalyser.Sim
             {
                 BaseNote firstNote = null, secondNote = null;
                 //Debug.Log($"Slider at: {nextObject.Time()} with {slider.noteCount} notes");
-                if (slider.isStack)
+                if (slider.isDotStack)
                 {
-                    if (slider.isDotStack)
-                    {
-                        slider.OrderFullDotStack(transform.position, wristAngle, parity);
-                    }
-                    else
-                    {
-                        slider.Order(slider.GetOrder(parity));
-                    }
+                    slider = slider.OrderFullDotStack(transform.position, wristAngle, parity);
                 }
                 for (int i = 0; i < slider.noteCount; i++)
                 {
@@ -194,7 +195,8 @@ namespace ParityAnalyser.Sim
             
         }
 
-        public virtual SaberSnapshot Reset(BaseNote culprit, Parity parity, string reason) 
+        // wristAngle could maybe be a boolean to keep the current angle
+        public virtual SaberSnapshot Reset(BaseNote culprit, Parity parity, string reason, float wristAngle = 0f) 
         {
             //ParityAnalyser.outline.AddToCache(culprit, Color.yellow);
             Debug.Log($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
@@ -202,7 +204,7 @@ namespace ParityAnalyser.Sim
             this.parity = parity;
             this.transform.rotation = Quaternion.identity;
             transform.localRotation *= Quaternion.AngleAxis(parity.Bool() ? 0f : 180f, Vector3.right);
-            this.wristAngle = 0;
+            this.wristAngle = wristAngle;
 
             return TakeSnapshot(culprit);
         }
@@ -247,7 +249,7 @@ namespace ParityAnalyser.Sim
             }
         }
 
-        protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider = false)
+        protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true, bool isSlider = false)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset)
             // TODO: optimize angle for consecutive dots, dot inverts cause problems with bombs (example: Deimos)
@@ -257,8 +259,9 @@ namespace ParityAnalyser.Sim
                 if (nextNote.CutDirection == (int)CutDir.ANY || isSlider)
                 {
                     // TODO: maybe check inlines (example: also abstruse dilemma) and inverts (example: Bad apple (Bitz) )
-                    // also try different directions if the swing collides with bombs   
-                    MoveTo(prevNote.Position());
+                    // also try different directions if the swing collides with bombs
+                    if (moveToDot)
+                        MoveTo(prevNote.Position());
                     Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
                     if (!parity.Bool()) dir = -dir;
                     float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
@@ -270,7 +273,7 @@ namespace ParityAnalyser.Sim
             return desiredAngle;
         }
 
-        protected virtual float WristRoll(BaseNote prevNote, BaseNote nextNote) => Mathf.DeltaAngle(wristAngle, CutAngle(prevNote, nextNote));
+        protected virtual float WristRoll(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true) => Mathf.DeltaAngle(wristAngle, CutAngle(prevNote, nextNote, moveToDot));
 
         private IEnumerable<SaberSnapshot> HandleBombGroup(BombGroup group)
         {
@@ -338,26 +341,6 @@ namespace ParityAnalyser.Sim
                 yield break;
             }
 
-            // Spiral reset
-            // TODO: Distinguish from bomb spam (example: MARENOL), detect spirals with missing bombs (example: meowter space
-            //if (group.AllConditions(topRowReset) && group.AllConditions(bottomRowReset))
-            //{
-            //    bool isBottomRow = (from b in @group.Where(note => note.TopRow() || note.BottomRow())
-            //                        orderby b.JsonTime descending
-            //                        select b).Last().BottomRow();
-            //    if (isBottomRow)
-            //    {
-            //        yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row spiral reset");
-            //        yield break;
-            //    }
-            //    else
-            //    {
-            //        yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row spiral reset");
-            //        yield break;
-            //    }
-
-            //}
-
             // Quick bomb reset
             float quickBombThreshold = 1 / 4f;
             IEnumerable<BaseNote> inlineBombs = group.Where(bomb => bomb.PosX == group.startNote.PosX && bomb.PosY == group.startNote.PosY);
@@ -379,27 +362,33 @@ namespace ParityAnalyser.Sim
         {
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
-            Vector3 originalPos = transform.position;
-            // TODO: group contiguous bombs in the same beat an the next beat to make rects
             if (group.singleBeat)
             {
-                foreach (var bomb in group.bombs.ConvertAll(note => note.Value))
+                // This foreach should only have 1 iteration
+                foreach (var cluster in group.GetClusters())
                 {
-                    float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote);
-                    float startAngle = wristAngle + swingOffset;
-                    bool intersects = Collision.SwingPathIntersects(hilt, startAngle, wristAngle + roll + swingOffset, bomb.Position(), debug, bomb);
-                    if (intersects)
+                    DodgeBombs(group, cluster);
+                    foreach (var hitbox in cluster.GetHitbox())
                     {
-                        yield return Reset(bomb, parity.Other(), "Bomb projection intersects");
+                        float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote, false);
+                        float startAngle = wristAngle + swingOffset;
+
+                        bool intersects = Collision.SwingPathIntersects(hilt, startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster.aBomb);
+                        if (intersects)
+                        {
+                            yield return Reset(cluster.aBomb, parity.Other(), "Bomb projection intersects");
+                            break;
+                        }
+
                     }
                 }
             }
             else
             {
-                foreach ((BaseNote bomb1, BaseNote bomb2) in group.GetPairs())
+                foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs())
                 {
                     Start:
-                    float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote);
+                    float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote, false);
                     float startAngle = wristAngle + swingOffset;
                     // Maybe should make a function to combine single note and slider desired angle
                     // TODO: Hatatagami beat 1350
@@ -408,64 +397,69 @@ namespace ParityAnalyser.Sim
                     // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees
                     float nextAngle = endAngle - swingOffset;
                     bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
-                    if (unnatural)
+                    if (unnatural && nextAngle != wristAngle)
                     {
-                        yield return Reset(bomb1, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}");
+                        yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}");
                         goto Start;
                     }
-
-                    float distanceToBomb = (new Vector2(hilt.x, hilt.y) - bomb1.Position()).magnitude;
-
-                    Vector2 hiltPos = new Vector2(hilt.x, hilt.y);
-
-                    Vector2 totalForce = Vector2.zero;
-
-                    int count = 0;
-                    foreach (BaseNote bomb in group.After(bomb1.JsonTime))
-                    {
-                        count++;
-                        float effectRadius = 1f;
-                        Vector2 bombPos = new Vector2(bomb.PosX, bomb.PosY);
-                        float timeDistance = bomb.JsonTime - bomb1.JsonTime;
-                        float projectionDistance = Vector2.Distance(bombPos, hiltPos);
-
-                        Vector2 dir = (hiltPos - bombPos).normalized;
-
-                        /* Pink diamond: beat 130 upcoming bombs push the saber into current bombs (maybe take current bombs into account but favour distance over time?)
-                         * beat 215 check left saber, also right saber doesn't seem to move
-                         * beat 223 forces saber angle (maybe fix with exploration?)
-                         */
-                        float timeScaleFactor = 1f, distanceScaleFactor = 1f;
-                        float timeMagnitude = Mathf.Exp(-1f * Mathf.Pow((timeDistance - 0.3f) / 0.2f, 2));
-                        float distanceMagnitude = (1 / (projectionDistance + effectRadius));
-                        float magnitude = timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude;
-
-                        totalForce += dir * magnitude;
-                    }
-                    totalForce /= count;
-                    totalForce += RestForce();
-                    MoveTo(transform.position + (Vector3)totalForce);
-                    //Debug.Log(transform.position);
-
-                    if (debug)
-                        Utils.RenderLine((Vector3)hiltPos, transform.position, Color.yellow, Color.black, sync: bomb1);
-
                     //Debug.Log($"{startAngle} - {endAngle}");
                     float lerpFactor = (endTime - startTime);
 
-                    float bomb1LerpAmount = (bomb1.JsonTime - startTime) / lerpFactor;
-                    float bomb2LerpAmount = (bomb2.JsonTime - startTime) / lerpFactor;
-                    bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), bomb1.Position(), debug, bomb1);
-
-                    if (swingPathCollides)
+                    float bomb1LerpAmount = (cluster1.time - startTime) / lerpFactor;
+                    float bomb2LerpAmount = (cluster2.time - startTime) / lerpFactor;
+                    foreach (Rect hitbox in cluster1.GetHitbox())
                     {
-                        // Please don't let the answer be recursive calls
-                        startTime = bomb1.JsonTime;
-                        yield return Reset(bomb1, parity.Other(), "Swing path");
+
+                        bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), hitbox, debug, cluster1.aBomb);
+
+                        if (swingPathCollides)
+                        {
+                            // Please don't let the answer be recursive calls
+                            startTime = cluster1.time;
+                            yield return Reset(cluster1.aBomb, parity.Other(), "Swing path", wristAngle);
+                            break;
+                        }
                     }
+                    DodgeBombs(group, cluster1, debug);
                 }
             }
             yield break;
+        }
+
+        private void DodgeBombs(BombGroup group, BombCluster currentCluster, bool debug = false)
+        {
+            Vector2 hiltPos = new Vector2(hilt.x, hilt.y);
+
+            Vector2 totalForce = Vector2.zero;
+
+            int count = 0;
+            foreach (BaseNote bomb in group.After(currentCluster.time))
+            {
+                count++;
+                float effectRadius = 1f;
+                Vector2 bombPos = new Vector2(bomb.PosX, bomb.PosY);
+                float timeDistance = bomb.JsonTime - currentCluster.time;
+                float projectionDistance = Vector2.Distance(bombPos, hiltPos);
+
+                Vector2 dir = (hiltPos - bombPos).normalized;
+
+                /* Pink diamond: beat 130 upcoming bombs push the saber into current bombs (maybe take current bombs into account but favour distance over time?)
+                 * beat 215 check left saber, also right saber doesn't seem to move
+                 * beat 223 forces saber angle (maybe fix with exploration?)
+                 */
+                float timeScaleFactor = 1f, distanceScaleFactor = 1f;
+                float timeMagnitude = Mathf.Exp(-1f * Mathf.Pow((timeDistance - 0.3f) / 0.2f, 2));
+                float distanceMagnitude = (1 / (projectionDistance + effectRadius));
+                float magnitude = timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude;
+
+                totalForce += dir * magnitude;
+            }
+            totalForce /= count;
+            totalForce += RestForce();
+            MoveTo(transform.position + (Vector3)totalForce);
+            if (debug)
+                Utils.RenderLine((Vector3)hiltPos, transform.position, Color.yellow, Color.black, sync: currentCluster.aBomb);
+            //Debug.Log(transform.position);
         }
 
         public virtual IEnumerable<ISimulationObject> ExtractBombGroups(List<ISimulationObject> notes)

@@ -33,6 +33,40 @@ namespace ParityAnalyser
 			return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
 		}
 
+        public static bool SegmentIntersectsRect(Vector2 p1, Vector2 p2, Rect rect)
+        {
+            // 1️⃣ Check if either endpoint is inside the rectangle
+            if (rect.Contains(p1) || rect.Contains(p2))
+                return true;
+
+            // 2️⃣ Define rectangle edges as segments
+            Vector2 topLeft = new Vector2(rect.xMin, rect.yMax);
+            Vector2 topRight = new Vector2(rect.xMax, rect.yMax);
+            Vector2 bottomLeft = new Vector2(rect.xMin, rect.yMin);
+            Vector2 bottomRight = new Vector2(rect.xMax, rect.yMin);
+
+            // Rectangle edges
+            if (SegmentIntersectsSegment(p1, p2, topLeft, topRight)) return true;
+            if (SegmentIntersectsSegment(p1, p2, topRight, bottomRight)) return true;
+            if (SegmentIntersectsSegment(p1, p2, bottomRight, bottomLeft)) return true;
+            if (SegmentIntersectsSegment(p1, p2, bottomLeft, topLeft)) return true;
+
+            return false;
+        }
+
+        // Check if two segments (p1->p2 and q1->q2) intersect
+        private static bool SegmentIntersectsSegment(Vector2 p1, Vector2 p2, Vector2 q1, Vector2 q2)
+        {
+            // Using cross products
+            float d = (p2.x - p1.x) * (q2.y - q1.y) - (p2.y - p1.y) * (q2.x - q1.x);
+            if (Mathf.Approximately(d, 0)) return false; // Parallel
+
+            float u = ((q1.x - p1.x) * (q2.y - q1.y) - (q1.y - p1.y) * (q2.x - q1.x)) / d;
+            float v = ((q1.x - p1.x) * (p2.y - p1.y) - (q1.y - p1.y) * (p2.x - p1.x)) / d;
+
+            return u >= 0f && u <= 1f && v >= 0f && v <= 1f;
+        }
+
         public static bool CircleCircleIntersection(Vector2 c0, float r0, Vector2 c1, float r1, out Vector2 p0, out Vector2 p1)
         {
             p0 = p1 = Vector2.zero;
@@ -65,6 +99,19 @@ namespace ParityAnalyser
             p1 = p - offset;
 
             return true;
+        }
+
+        public static bool CircleRectIntersection(Vector2 circleCenter, float radius, Rect rect, out Vector2 closestPoint)
+        {
+            // Clamp circle center to rectangle bounds → closest point on rectangle
+            float x = Mathf.Clamp(circleCenter.x, rect.xMin, rect.xMax);
+            float y = Mathf.Clamp(circleCenter.y, rect.yMin, rect.yMax);
+            closestPoint = new Vector2(x, y);
+
+            // Distance from circle center to closest point
+            float distanceSq = (closestPoint - circleCenter).sqrMagnitude;
+
+            return distanceSq <= radius * radius;
         }
 
         // With small angles it could be approximated with a triangle
@@ -102,20 +149,6 @@ namespace ParityAnalyser
                 }
                 return true;
             }
-            // Bomb is inside the radius
-            //else if (Vector2.Distance(position, bombPosition) < Saber.length)
-            //{
-            //    float alpha = Vector2.Angle(boundaryA, boundaryB);
-            //    float beta = Vector2.Angle(boundaryA, bombPosition - position);
-            //    if (beta < alpha)
-            //    {
-            //        if (debug)
-            //        {
-            //            Debug.Log("Contained");
-            //        }
-            //        return true;
-            //    }
-            //}
             // Bomb intersects the arc
             else if (CircleCircleIntersection(position, Saber.length, bombPosition, Simulation.bombRadius, out Vector2 p1, out Vector2 p2))
             {
@@ -159,6 +192,57 @@ namespace ParityAnalyser
             }
             return false;
         }
-	}
+
+        public static bool SwingPathIntersects(Vector2 position, float startAngle, float endAngle, Rect hitbox, bool debug = false, BaseNote bombForDebug = null)
+        {
+            Vector2 boundaryA = position + (Utils.DirectionFromDownAngle(startAngle) * Saber.length); // Boundary point B
+            Vector2 boundaryB = position + (Utils.DirectionFromDownAngle(endAngle) * Saber.length); // Boundary point B
+            if (debug)
+            {
+                Utils.RenderLine((Vector3)position, (Vector3)boundaryA, Color.blue, Color.blue, 0.02f, sync: bombForDebug);
+                Utils.RenderLine((Vector3)position, (Vector3)boundaryB, Color.red, Color.red, sync: bombForDebug);
+
+                Utils.RenderRect(hitbox, Color.green, sync: bombForDebug);
+            }
+
+
+            // Sector boundary intersects (includes inside rect case)
+            bool boundaryAIntersects = SegmentIntersectsRect(position, boundaryA, hitbox), boundaryBIntersects = SegmentIntersectsRect(position, boundaryB, hitbox);
+            if (boundaryAIntersects || boundaryBIntersects)
+            {
+                if (debug)
+                {
+                    Debug.Log("Boundary intersection");
+                }
+                return true;
+            }
+
+            // Bomb intersects the arc
+            else if (CircleRectIntersection(position, Saber.length, hitbox, out Vector2 point))
+            {
+                float alpha = Vector2.Angle(boundaryA - position, boundaryB - position);
+                float beta = Vector2.Angle(boundaryA - position, point - position);
+                float gamma = Vector2.Angle(boundaryB - position, point - position);
+
+
+                if (beta < alpha && gamma < alpha)
+                {
+                    if (debug)
+                    {
+                        Debug.Log($"P1 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
+                        //Debug.Log($"A: {boundaryA}, B: {boundaryB}, P1: {p1}");
+                        Utils.RenderLine((Vector3)position, (Vector3)point, Color.green, Color.green, sync: bombForDebug);
+                        Debug.Log("P1");
+                    }
+                    return true;
+                }
+            }
+            else
+            {
+                return false;
+            }
+            return false;
+        }
+    }
 
 }
