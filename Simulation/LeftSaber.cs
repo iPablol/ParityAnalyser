@@ -18,7 +18,7 @@ namespace ParityAnalyser.Sim
             this.transform.position = restPoint;
         }
 
-        protected override float maxClockwiseAngle => -135f;
+        protected override float maxClockwiseAngle => -180f;
 
         protected override float maxCCAngle => 180f;
 

@@ -67,6 +67,7 @@ namespace ParityAnalyser
             return true;
         }
 
+        // With small angles it could be approximated with a triangle
         // https://math.stackexchange.com/questions/177857/circular-sector-to-circle-intersection#:~:text=To%20determine%20if%20a%20circular%20sector%20intersects,radius%20r%20distance%20from%20the%20center%20point
         public static bool SwingPathIntersects(Vector2 position, float startAngle, float endAngle, Vector2 bombPosition, bool debug = false, BaseNote bombForDebug = null)
         {
@@ -74,7 +75,7 @@ namespace ParityAnalyser
 			Vector2 boundaryB = position + (Utils.DirectionFromDownAngle(endAngle) * Saber.length); // Boundary point B
             if (debug)
             {
-                Utils.RenderLine((Vector3)position, (Vector3)boundaryA, Color.blue, Color.blue, sync: bombForDebug);
+                Utils.RenderLine((Vector3)position, (Vector3)boundaryA, Color.blue, Color.blue, 0.02f, sync: bombForDebug);
                 Utils.RenderLine((Vector3)position, (Vector3)boundaryB, Color.red, Color.red, sync: bombForDebug);
 
                 //Utils.RenderLine((Vector3)bombPosition, (Vector3)bombPosition + zVec + Vector3.up * Simulation.bombRadius, Color.black, Color.black, 0.3f, bombForDebug);
@@ -93,7 +94,7 @@ namespace ParityAnalyser
             {
                 if (debug)
                 {
-                    //Debug.Log("Boundary intersection");
+                    Debug.Log("Boundary intersection");
                     //Debug.Log($"Position: {position}");
                     //Debug.Log($"Boundary A: {boundaryA} ({boundaryAIntersects}), Boundary B: {boundaryB} ({boundaryBIntersects})");
                     //Debug.Log($"Bomb position: {bombPosition}");
@@ -102,47 +103,51 @@ namespace ParityAnalyser
                 return true;
             }
             // Bomb is inside the radius
-            else if (Vector2.Distance(position, bombPosition) < Saber.length)
-            {
-                float alpha = Vector2.Angle(boundaryA, boundaryB);
-                float beta = Vector2.Angle(boundaryA, bombPosition - position);
-                if (beta < alpha)
-                {
-                    if (debug)
-                    {
-                        Debug.Log("Contained");
-                    }
-                    return true;
-                }
-            }
+            //else if (Vector2.Distance(position, bombPosition) < Saber.length)
+            //{
+            //    float alpha = Vector2.Angle(boundaryA, boundaryB);
+            //    float beta = Vector2.Angle(boundaryA, bombPosition - position);
+            //    if (beta < alpha)
+            //    {
+            //        if (debug)
+            //        {
+            //            Debug.Log("Contained");
+            //        }
+            //        return true;
+            //    }
+            //}
             // Bomb intersects the arc
             else if (CircleCircleIntersection(position, Saber.length, bombPosition, Simulation.bombRadius, out Vector2 p1, out Vector2 p2))
             {
                 float alpha = Vector2.Angle(boundaryA - position, boundaryB - position);
                 float beta = Vector2.Angle(boundaryA - position, p1 - position);
+                float gamma = Vector2.Angle(boundaryB - position, p1 - position);
 
 
-                if (beta < alpha)
+                if (beta < alpha && gamma < alpha)
                 {
                     if (debug)
                     {
-                        //Debug.Log($"P1 Alpha: {alpha}, beta: {beta}");
+                        Debug.Log($"P1 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
                         //Debug.Log($"A: {boundaryA}, B: {boundaryB}, P1: {p1}");
                         Utils.RenderLine((Vector3)position, (Vector3)p1, Color.green, Color.green, sync: bombForDebug);
                         Utils.RenderLine(position, p2, Color.green, Color.green, sync: bombForDebug);
+                        Debug.Log("P1");
                     }
                     return true;
                 }
 
                 beta = Vector2.Angle(boundaryA - position, p2 - position);
-                if (beta < alpha)
+                gamma = Vector2.Angle(boundaryB - position, p2 - position);
+                if (beta < alpha && gamma < alpha)
                 {
                     if (debug)
                     {
-                        //Debug.Log($"P2 Alpha: {alpha}, beta: {beta}, P2{p2}");
-                        //Debug.Log($"A: {boundaryA}, B: {boundaryB}");
+                        Debug.Log($"P2 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
+                        //Debug.Log($"A: {boundaryA}, B: {boundaryB}, P2{p2}");
                         Utils.RenderLine((Vector3)position, (Vector3)p1, Color.green, Color.green, sync: bombForDebug);
                         Utils.RenderLine((Vector3)position, (Vector3)p2, Color.green, Color.green, sync: bombForDebug);
+                        Debug.Log("P2");
                     }
                     return true;
                 }

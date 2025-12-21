@@ -287,12 +287,12 @@ namespace ParityAnalyser.Sim
                 (note) => note.RightInnerLane() && note.BottomRow(),
                 (note) => note.RightOuterLane() && note.BottomRow(),
                 ];
-            //bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3;
-            //Debug.Log(wristAngle);
-            //Debug.Log(wristAngle + roll);
-            //Debug.Log("");
+            bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
             // TODO: softcode these variables
-            bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f;
+            bool rollTowardRestingPosition = (wristAngle != 0f && Mathf.Sign(wristAngle) == Mathf.Sign(roll)) 
+                                                || (wristAngle == 0f && roll == 0f);
+            //Debug.Log($"Wrist: {wristAngle}, roll: {roll} ({rollTowardRestingPosition})");
+            bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && !rollTowardRestingPosition;
             if (shouldResetDueToAngle && Mathf.Abs(roll) > 90f)
             {
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
@@ -302,7 +302,7 @@ namespace ParityAnalyser.Sim
             bool shouldResetDueToInline = group.endNote.BottomRow();
 
             //Debug.Log($"Beat: {group.startNote.JsonTime}, angle: {wristAngle}, roll: {roll}, condition: {Mathf.Abs(wristAngle + roll)}, desired: {DesiredAngle((CutDir)group.endNote.CutDirection)}");
-            if (parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 45f && group.Satisfies(bottomRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
             {
                 //TODO: try to move out of the way
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
@@ -319,9 +319,8 @@ namespace ParityAnalyser.Sim
                 ];
             //bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
             shouldResetDueToInline = group.endNote.TopRow();
-            if (parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 45f && group.Satisfies(topRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 90f && group.Satisfies(topRowReset) && (shouldResetDueToAngle || shouldResetDueToInline || shouldResetDueToRoll))
             {
-                //TODO: try to move out of the way
                 yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
                 yield break;
             }
@@ -366,22 +365,22 @@ namespace ParityAnalyser.Sim
 
         protected virtual IEnumerable<SaberSnapshot> ExploreBombGroup(BombGroup group, float startTime, float endTime)
         {
-            bool debug = this is LeftSaber;
+            bool debug = this is RightSaber;
             Vector3 originalPos = transform.position;
             // TODO: group contiguous bombs in the same beat an the next beat to make rects
             foreach ((BaseNote bomb1, BaseNote bomb2) in group.GetPairs())
             {
+                Start:
                 float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote);
-                //if (!hasReset && Mathf.Sign(roll) == Mathf.Sign(wristAngle) && roll != 0f)
-                //{
-                //    // Wrist roll should be towards the resting position, otherwise it's an unnatural hit (?)
-                //    // Could cause problems if there are bombs present while rotating?
-                //    yield return Reset(group.bombs.First(), parity.Other(), "Unnatural wrist roll (bomb exploration)");
-                //}
                 float startAngle = wristAngle + swingOffset;
                 // Maybe should make a function to combine single note and slider desired angle
-                float endAngle = hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection): 
+                float endAngle = hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
                     wristAngle + roll + swingOffset;
+                if (endAngle - swingOffset > maxCCAngle || endAngle - swingOffset < maxClockwiseAngle/*!hasReset && Mathf.Sign(roll) == Mathf.Sign(wristAngle) && roll != 0f*/)
+                {
+                    yield return Reset(bomb1, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{startAngle} - {endAngle - swingOffset}");
+                    goto Start;
+                }
                 //Debug.Log($"{startAngle} - {endAngle}");
                 float lerpFactor = (endTime - startTime);
 
@@ -430,7 +429,7 @@ namespace ParityAnalyser.Sim
                 if (swingPathCollides)
                 {
                     // Please don't let the answer be recursive calls
-                    startTime = bomb1LerpAmount * lerpFactor;
+                    startTime = bomb1.JsonTime;
                     yield return Reset(bomb1, parity.Other(), "Swing path");
                 }
             }

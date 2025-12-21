@@ -19,7 +19,8 @@ namespace ParityAnalyser.Sim
 
         protected override float maxClockwiseAngle => -180f;
 
-        protected override float maxCCAngle => 135f;
+        // Howl in the night sky has upside down hits
+        protected override float maxCCAngle => 180f;
 
         protected override Vector2 restPoint { get; } = new Vector2(2f, 1f);
 
