@@ -42,6 +42,7 @@ namespace ParityAnalyser.Sim
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.ConvertAll<BaseNote>(note => note.Value).Append(nextObject.FirstNote()).ToList(), false);
         public IEnumerable<(BombCluster, BombCluster)> GetClusterPairs() => new OverlappingPairIterator<BombCluster>(GetClusters(), true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST);
 
+        // Phantom bomb at pink diamond 366
         public IEnumerable<BombCluster> GetClusters()
         {   
             if (singleBeat)

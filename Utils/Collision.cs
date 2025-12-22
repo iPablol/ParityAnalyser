@@ -33,7 +33,7 @@ namespace ParityAnalyser
 			return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
 		}
 
-        public static bool SegmentIntersectsRect(Vector2 p1, Vector2 p2, Rect rect)
+        public static bool SegmentIntersectsRect(Vector2 p1, Vector2 p2, OrientedRect rect)
         {
             // 1️⃣ Check if either endpoint is inside the rectangle
             if (rect.Contains(p1) || rect.Contains(p2))
@@ -101,7 +101,7 @@ namespace ParityAnalyser
             return true;
         }
 
-        public static bool CircleRectIntersection(Vector2 circleCenter, float radius, Rect rect, out Vector2 closestPoint)
+        public static bool CircleRectIntersection(Vector2 circleCenter, float radius, OrientedRect rect, out Vector2 closestPoint)
         {
             // Clamp circle center to rectangle bounds → closest point on rectangle
             float x = Mathf.Clamp(circleCenter.x, rect.xMin, rect.xMax);
@@ -193,7 +193,7 @@ namespace ParityAnalyser
             return false;
         }
 
-        public static bool SwingPathIntersects(Vector2 position, float startAngle, float endAngle, Rect hitbox, bool debug = false, BaseNote bombForDebug = null)
+        public static bool SwingPathIntersects(Vector2 position, float startAngle, float endAngle, OrientedRect hitbox, bool debug = false, BaseNote bombForDebug = null)
         {
             Vector2 boundaryA = position + (Utils.DirectionFromDownAngle(startAngle) * Saber.length); // Boundary point B
             Vector2 boundaryB = position + (Utils.DirectionFromDownAngle(endAngle) * Saber.length); // Boundary point B

@@ -3,6 +3,7 @@ using Beatmap.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -32,7 +33,46 @@ namespace ParityAnalyser
         public static bool RightInnerLane(this BaseNote note) => note.PosX == 2;
         public static bool RightOuterLane(this BaseNote note) => note.PosX == 3;
 
+        public static Vector2 BombDodgeCenter(this BaseNote bomb)
+        {
+            Vector2 offset = default;
+            switch (bomb.PosY)
+            {
+                case 0:
+                    offset = bomb.PosX > 1 ? 
+                        // Bottom right
+                        new(0.5f, -0.5f) :
+                        // Bottom left
+                        new(-0.5f, -0.5f);
+                    break;
+                case 1:
+                    if (bomb.RightOuterLane())
+                    {
+                        // Middle right
+                        offset = new(0.5f, 0f);
+                    }
+                    else if (bomb.LeftOuterLane())
+                    {
+                        // Middle left
+                        offset = new(-0.5f, 0f);
+                    }
+                    break;
+                case 2:
+                    offset = bomb.PosX > 1 ?
+                        // Top right
+                        new(0.5f, 0.5f) :
+                        // Top left
+                        new(-0.5f, 0.5f);
+                    break;
+
+                default: break;
+            }
+
+            return bomb.Position() + offset;
+        }
+
         public static bool IsBomb(this BaseNote note) => note.Type == (int)NoteType.Bomb;
+        public static bool IsDot(this BaseNote note) => note.CutDirection == (int)NoteDirection.ANY;
 
         public static bool IsInlineWith(this BaseNote note, BaseNote note2) => note.Position() == note2.Position();
 

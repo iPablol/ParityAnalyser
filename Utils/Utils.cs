@@ -185,9 +185,8 @@ namespace ParityAnalyser
 
         }
 
-        public static void RenderRect(Rect r, Color color, float width = 0.05f, BaseNote sync = null)
+        public static void RenderRect(OrientedRect r, Color color, float width = 0.05f, BaseNote sync = null)
         {
-            Vector2 tl = new(r.x, r.y), tr = tl + new Vector2(r.width, 0), bl = tl + new Vector2(0, r.height), br = tl + new Vector2(r.width, r.height);
             GameObject renderer = new GameObject("rect");
             LineRenderer lr = renderer.AddComponent<LineRenderer>();
             lr.positionCount = 5;
@@ -211,11 +210,11 @@ namespace ParityAnalyser
             lr.material = new Material(Shader.Find("Sprites/Default"));
 
             var atc = ParityAnalyser.atc;
-            lr.SetPositions([(Vector3)tl + sync.Offset(), (Vector3)tr + sync.Offset(), (Vector3)br + sync.Offset(), (Vector3)bl + sync.Offset(), (Vector3)tl + sync.Offset()]);
+            lr.SetPositions([(Vector3)r.tl + sync.Offset(), (Vector3)r.tr + sync.Offset(), (Vector3)r.br + sync.Offset(), (Vector3)r.bl + sync.Offset(), (Vector3)r.tl + sync.Offset()]);
             Action update = () =>
             {
                 float time = atc.CurrentJsonTime;
-                lr.SetPositions([(Vector3)tl + sync.Offset(), (Vector3)tr + sync.Offset(), (Vector3)br + sync.Offset(), (Vector3)bl + sync.Offset(), (Vector3)tl + sync.Offset()]);
+                lr.SetPositions([(Vector3)r.tl + sync.Offset(), (Vector3)r.tr + sync.Offset(), (Vector3)r.br + sync.Offset(), (Vector3)r.bl + sync.Offset(), (Vector3)r.tl + sync.Offset()]);
 
             };
             ParityAnalyser.AddRender(renderer, update);

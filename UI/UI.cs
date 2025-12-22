@@ -30,7 +30,7 @@ namespace ParityAnalyser
             //Texture2D texture2D = new Texture2D(256, 256);
             //texture2D.LoadImage(data);
 
-            //_extensionBtn.Icon = Sprite.Create(texture2D, new Rect(0, 0, texture2D.width, texture2D.height), new Vector2(0, 0), 100.0f);
+            //_extensionBtn.Icon = Sprite.Create(texture2D, new OrientedRect(0, 0, texture2D.width, texture2D.height), new Vector2(0, 0), 100.0f);
             _extensionBtn.Tooltip = "Parity Analyser";
             ExtensionButtons.AddButton(_extensionBtn);
         }
@@ -43,15 +43,15 @@ namespace ParityAnalyser
             _menu = new GameObject("Automapper Menu");
             _menu.transform.parent = parent.transform;
 
-            AttachTransform(_menu, 280, 200, 1, 1, 0, 0, 1, 1);
+            AttachTransform(_menu, 360, 280, 1, 1, 0, 0, 1, 1);
 
             Image image = _menu.AddComponent<Image>();
             image.sprite = PersistentUI.Instance.Sprites.Background;
             image.type = Image.Type.Sliced;
             image.color = new Color(0.24f, 0.24f, 0.24f);
 
-            AddButton(_menu.transform, "Analyse", "Analyse", new Vector2(60, -80), _plugin.Analyse);
-            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(60, -120), ParityAnalyser.ClearRenders);
+            AddButton(_menu.transform, "Analyse", "Analyse", new Vector2(140, -40), _plugin.Analyse);
+            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(140, -80), ParityAnalyser.ClearRenders);
             float[] yPos = new float[3] { -25, -25, -25 };
             foreach (FieldInfo option in typeof(Options).GetFields().Where(f => f.FieldType == typeof(bool)))
             {

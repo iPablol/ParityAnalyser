@@ -209,8 +209,10 @@ namespace ParityAnalyser.Sim
             return TakeSnapshot(culprit);
         }
 
-        protected void MoveTo(Vector2 pos) { this.transform.position = new Vector3(pos.x, pos.y, transform.position.z); }
-        protected void MoveTo(Vector3 pos) { this.transform.position = pos; }
+        protected void MoveTo(Vector2 pos) { this.transform.position = new Vector3(Mathf.Clamp(pos.x, Simulation.minSaberX, Simulation.maxSaberX), 
+                                                                        Mathf.Clamp(pos.y, Simulation.minSaberY, Simulation.maxSaberY), 
+                                                                        transform.position.z); }
+        protected void MoveTo(Vector3 pos) => MoveTo((Vector2)pos);
 
         protected virtual void RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
         {
@@ -255,12 +257,12 @@ namespace ParityAnalyser.Sim
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
             if (prevNote != null)
             {
-                bool shouldKeepAngle = prevNote.IsInlineWith(nextNote) || nextNote.IsInvert(prevNote, wristAngle + parityAngle);
-                if (shouldKeepAngle && ParityAnalyser.options.renderInlinesAndInverts)
+                bool shouldKeepAngle = prevNote.IsInlineWith(nextNote) || nextNote.IsInvert(prevNote, wristAngle + parityAngle) || nextNote.PosY == prevNote.PosY;
+                if (shouldKeepAngle && ParityAnalyser.options.debugDots && nextNote.IsDot())
                 {
                     ParityAnalyser.outline.AddToCache(nextNote, Color.cyan);
                 }
-                if ((nextNote.CutDirection == (int)CutDir.ANY && !shouldKeepAngle) || isSlider)
+                if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider)
                 {
                     // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
                     // also try different directions if the swing collides with bombs
@@ -366,6 +368,7 @@ namespace ParityAnalyser.Sim
         {
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
+            // Simulate hit momentum
             MoveTo(transform.position + transform.up);
             if (group.singleBeat)
             {
@@ -390,16 +393,18 @@ namespace ParityAnalyser.Sim
             }
             else
             {
-                bool freeze = (CutDir)group.endNote.CutDirection == CutDir.ANY;
+                bool freeze = group.endNote.IsDot();
                 bool frozen = false;
                 float freezeAngle = 0f;
+                
                 foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs())
                 {
+                    // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
+                    DodgeBombs(group, cluster1, debug);
                     Start:
                     float swingOffset = parityAngle, roll = WristRoll(group.startNote, group.endNote, false);
                     float startAngle = wristAngle + swingOffset;
                     // Maybe should make a function to combine single note and slider desired angle
-                    // TODO: Hatatagami beat 1350
                     float endAngle =
                         (hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
                         wristAngle + roll + swingOffset);
@@ -412,7 +417,7 @@ namespace ParityAnalyser.Sim
                     {
                         endAngle = freezeAngle;
                     }
-                    // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees
+                    // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
                     float nextAngle = endAngle - swingOffset;
                     bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
                     //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
@@ -426,7 +431,7 @@ namespace ParityAnalyser.Sim
 
                     float bomb1LerpAmount = (cluster1.time - startTime) / lerpFactor;
                     float bomb2LerpAmount = (cluster2.time - startTime) / lerpFactor;
-                    foreach (Rect hitbox in cluster1.GetHitbox())
+                    foreach (OrientedRect hitbox in cluster1.GetHitbox())
                     {
 
                         bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), hitbox, debug, cluster1.aBomb);
@@ -439,8 +444,6 @@ namespace ParityAnalyser.Sim
                             break;
                         }
                     }
-                    // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
-                    DodgeBombs(group, cluster1, debug);
                 }
             }
             yield break;
@@ -457,8 +460,8 @@ namespace ParityAnalyser.Sim
             foreach (BaseNote bomb in group.After(currentCluster.time))
             {
                 count++;
-                float effectRadius = 1f;
-                Vector2 bombPos = new Vector2(bomb.PosX, bomb.PosY);
+                float effectRadius = 0.5f;
+                Vector2 bombPos = bomb.BombDodgeCenter();
                 float timeDistance = bomb.JsonTime - currentCluster.time;
                 float projectionDistance = Vector2.Distance(bombPos, hiltPos);
 
@@ -468,7 +471,7 @@ namespace ParityAnalyser.Sim
                  * beat 215 check left saber, also right saber doesn't seem to move
                  * beat 223 forces saber angle (maybe fix with exploration?)
                  */
-                float timeScaleFactor = 1f, distanceScaleFactor = 1f;
+                float timeScaleFactor = 1f, distanceScaleFactor = 2f;
                 float timeMagnitude = Mathf.Exp(-1f * Mathf.Pow((timeDistance - 0.3f) / 0.2f, 2));
                 float distanceMagnitude = (1 / (projectionDistance + effectRadius));
                 float magnitude = timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude;
@@ -489,7 +492,18 @@ namespace ParityAnalyser.Sim
             totalForce += RestForce();
             MoveTo(transform.position + (Vector3)totalForce);
             if (debug)
+            {
                 Utils.RenderLine((Vector3)hiltPos, transform.position, Color.yellow, Color.black, sync: currentCluster.aBomb);
+            }
+            if ((this is LeftSaber && ParityAnalyser.options.renderLeftBombDodgePoints) ||
+                (this is RightSaber && ParityAnalyser.options.renderRightBombDodgePoints))
+            {
+                foreach (BaseNote bomb in group.bombs)
+                {
+                    Utils.RenderSphere(bomb.BombDodgeCenter(), 0.2f, Color.red, bomb);
+                }
+
+            }
             //Debug.Log(transform.position);
         }
 
