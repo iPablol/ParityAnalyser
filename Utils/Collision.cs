@@ -220,6 +220,7 @@ namespace ParityAnalyser
             // Bomb intersects the arc
             else if (CircleRectIntersection(position, Saber.length, hitbox, out Vector2 point))
             {
+                // TODO: fix this (example: seraph's trial beat 268)
                 float alpha = Vector2.Angle(boundaryA - position, boundaryB - position);
                 float beta = Vector2.Angle(boundaryA - position, point - position);
                 float gamma = Vector2.Angle(boundaryB - position, point - position);

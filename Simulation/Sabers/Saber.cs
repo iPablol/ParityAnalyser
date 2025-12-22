@@ -172,7 +172,7 @@ namespace ParityAnalyser.Sim
                         secondNote = slider.Notes().ElementAt(i + 1);
                     }
                     BaseNote nextNote = isLast ? secondNote : firstNote;
-                    float angle = CutAngle(firstNote, secondNote, true);
+                    float angle = CutAngle(firstNote, secondNote, true, true);
                     if (angle == 180f && this is RightSaber)
                     {
                         angle = -180f;
@@ -214,7 +214,7 @@ namespace ParityAnalyser.Sim
 
         protected virtual void RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
         {
-            BaseNote previousNote = previousObject?.LastNote() ?? null;
+            BaseNote previousNote = previousObject is BombGroup group ? group.startNote : previousObject?.LastNote() ?? null;
             BaseNote nextNote = nextObject.FirstNote();
             float desiredAngle = CutAngle(previousNote, nextNote);
             MoveTowardsNote(desiredAngle, nextNote);
@@ -308,7 +308,7 @@ namespace ParityAnalyser.Sim
                 (note) => note.RightOuterLane() && note.BottomRow(),
                 ];
             bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
-            // TODO: softcode these variables
+            
             Debug.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
 
             bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Mathf.Abs(roll) >= 135f || Mathf.Abs(wristAngle + roll) >= 180f);
@@ -319,7 +319,7 @@ namespace ParityAnalyser.Sim
             }
             bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
-            
+            // Dots are not recognised (example: chimera dragons 1030)
             if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToRoll))
             {
                 Debug.Log($"Angle: {shouldResetDueToAngle} - wa: {wristAngle} - r: {roll} - c: {RollsComfortably(roll)}\n" +
@@ -385,6 +385,9 @@ namespace ParityAnalyser.Sim
             }
             else
             {
+                bool freeze = (CutDir)group.endNote.CutDirection == CutDir.ANY;
+                bool frozen = false;
+                float freezeAngle = 0f;
                 foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs())
                 {
                     Start:
@@ -392,17 +395,28 @@ namespace ParityAnalyser.Sim
                     float startAngle = wristAngle + swingOffset;
                     // Maybe should make a function to combine single note and slider desired angle
                     // TODO: Hatatagami beat 1350
-                    float endAngle = hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
-                        wristAngle + roll + swingOffset;
+                    float endAngle =
+                        (hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
+                        wristAngle + roll + swingOffset);
+                    if (freeze && !frozen)
+                    {
+                        freezeAngle = endAngle;
+                        frozen = true;
+                    }
+                    else if (frozen)
+                    {
+                        endAngle = freezeAngle;
+                    }
                     // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees
                     float nextAngle = endAngle - swingOffset;
                     bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
+                    //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
                     if (unnatural && nextAngle != wristAngle)
                     {
                         yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}");
+                        freeze = false;
                         goto Start;
                     }
-                    //Debug.Log($"{startAngle} - {endAngle}");
                     float lerpFactor = (endTime - startTime);
 
                     float bomb1LerpAmount = (cluster1.time - startTime) / lerpFactor;
@@ -420,6 +434,7 @@ namespace ParityAnalyser.Sim
                             break;
                         }
                     }
+                    // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
                     DodgeBombs(group, cluster1, debug);
                 }
             }
@@ -428,6 +443,7 @@ namespace ParityAnalyser.Sim
 
         private void DodgeBombs(BombGroup group, BombCluster currentCluster, bool debug = false)
         {
+            // Maybe should move towards next note
             Vector2 hiltPos = new Vector2(hilt.x, hilt.y);
 
             Vector2 totalForce = Vector2.zero;
@@ -519,7 +535,7 @@ namespace ParityAnalyser.Sim
                 {
                     ParityAnalyser.outline.AddToCache(bomb, groupColor);
                 }
-                if (renderEnd) Utils.RenderSphere(new Vector3(group.endNote.PosX, 4, 0f), 0.3f, groupColor, group.endNote);
+                if (renderEnd && group.endNote != null) Utils.RenderSphere(new Vector3(group.endNote.PosX, 4, 0f), 0.3f, groupColor, group.endNote);
             }
         }
 
@@ -528,7 +544,7 @@ namespace ParityAnalyser.Sim
         {
             Vector2 dir = (restPoint - (Vector2)transform.position).normalized;
             float radius = 0.1f;
-            float scaleFactor = 1f, power = 1.75f;
+            float scaleFactor = 1f, power = 1.1f;
             float magnitude = Mathf.Min(scaleFactor * Mathf.Max(0, Mathf.Pow(Vector2.Distance(restPoint, transform.position) - radius, power)), 4f);
             return dir * magnitude;
         }
@@ -536,7 +552,7 @@ namespace ParityAnalyser.Sim
         public List<SliderGroup> sliderGroups { get; private set; } = [];
 
         private Vector3 cutOffset => transform.up * CutDistance;
-        public static readonly float CutDistance = 1f;
+        public static readonly float CutDistance = 0.5f;
 
         protected abstract float maxClockwiseAngle { get; }
         protected abstract float maxCCAngle { get; }

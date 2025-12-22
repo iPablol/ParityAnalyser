@@ -51,7 +51,7 @@ namespace ParityAnalyser.Sim
                 }
                 foreach ((ISimulationObject note1, ISimulationObject note2) in this.leftSaber.GetPairs())
                 {
-                    //Debug.Log($"Prev: {note1.GetType()}, Next: {note2.GetType()}");
+                    //Debug.Log($"({note1.Time()} - {note2.Time()}) Prev: {note1.GetType()}, Next: {note2.GetType()}");
                     //Debug.Log("");
                     foreach (SaberSnapshot snap in this.leftSaber.Swing(note1, note2))
                     {
