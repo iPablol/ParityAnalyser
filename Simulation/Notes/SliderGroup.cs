@@ -43,23 +43,28 @@ namespace ParityAnalyser.Sim
          *  select closest angle to wrist angle
          * */
 
-        public SliderGroup OrderFullDotStack(Vector2 saberPos, float wristAngle, Parity parity)
+        public SliderGroup OrderFullDotStack(ISimulationObject lastObject, float wristAngle, Parity parity)
         {
+            Vector2 pos = lastObject is BombGroup group ? group.startNote.Position() : lastObject.LastNote().Position();
             if (isFullyHorizontal)
             {
                 BaseNote firstNote = (from note in slider
-                                      orderby Math.Abs(note.PosX - saberPos.x) ascending
+                                      orderby Math.Abs(note.PosX - pos.x) ascending
                                       select note).First();
                 float to90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 90f));
                 float toNeg90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, -90f));
-
                 bool closerTo90 = to90 < toNeg90;
+                if (to90.NearlyEqual(toNeg90))
+                {
+                    bool left = !slider.Any(note => note.PosX > pos.x);
+                    return Order(left ? StackOrder.RightToLeft : StackOrder.LeftToRight);
+                }
                 return Order(GetOrder(parity, closerTo90 ? 90f : -90f));
             }
             else
             {
                 BaseNote firstNote = (from note in slider
-                                      orderby Math.Abs(note.PosY - saberPos.y) ascending
+                                      orderby Math.Abs(note.PosY - pos.y) ascending
                                       select note).First();
                 float to180 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 180f));
                 float to0 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 0));
@@ -67,7 +72,16 @@ namespace ParityAnalyser.Sim
 
                 float closer180 = Mathf.Min(Mathf.Abs(to180), Mathf.Abs(toNeg180));
                 bool closerTo180 = closer180 < to0;
-
+                if (closer180.NearlyEqual(to0))
+                {
+                    bool bottom = slider.All(note => note.PosY <= pos.y);
+                    if (pos.y.NearlyEqual(1f))
+                    {
+                        // prioritize down swings
+                        return Order(StackOrder.TopToBottom);
+                    }
+                    return Order(bottom ? StackOrder.TopToBottom : StackOrder.BottomToTop);
+                }
                 return Order(GetOrder(parity, closerTo180 ? 180f : 0f));
             }
         }

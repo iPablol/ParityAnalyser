@@ -280,6 +280,19 @@ namespace ParityAnalyser
             return char.ToUpper(result[0]) + result.Substring(1);
         }
 
+        public static float SignedDistanceToPlane(this Vector2 p, Vector2 planePoint, Vector2 normalDirection)
+        {
+            
+            Vector2 n = normalDirection.normalized;
+
+            return Vector2.Dot(p - planePoint, n);
+        }
+
+        public static bool NearlyEqual(this float a, float b, float tolerance = 0.1f)
+        {
+            return Mathf.Abs(a - b) <= tolerance;
+        }
+
     }
     
 }

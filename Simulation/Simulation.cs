@@ -96,6 +96,8 @@ namespace ParityAnalyser.Sim
 
         
     }
+
+    // The rotation can be inferred from wristAngle and parity?
     public record struct SaberSnapshot(BaseNote note, Vector3 position, Quaternion rotation, Parity parity, float wristAngle, bool reset = false)
     {
 

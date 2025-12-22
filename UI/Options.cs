@@ -29,6 +29,7 @@ namespace ParityAnalyser
         public bool debugRightBombCollisions = false;
 
         public bool logResets = true;
+        public bool renderInlinesAndInverts = false;
 
         [NonSerialized]private static readonly string savePath = Path.Combine(Application.persistentDataPath, "ParityAnalyser.json");
 

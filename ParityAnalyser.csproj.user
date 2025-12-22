@@ -6,6 +6,7 @@
     <StartWorkingDirectory>C:\Users\ptori\Documents\chromapper\chromapper\</StartWorkingDirectory>
     <RemoteDebugEnabled>false</RemoteDebugEnabled>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
-    <StartArguments>--debug-agent=transport=dt_socket,server=y,address=127.0.0.1:56000</StartArguments>
+    <StartArguments>
+    </StartArguments>
   </PropertyGroup>
 </Project>

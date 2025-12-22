@@ -34,6 +34,14 @@ namespace ParityAnalyser
 
         public static bool IsBomb(this BaseNote note) => note.Type == (int)NoteType.Bomb;
 
+        public static bool IsInlineWith(this BaseNote note, BaseNote note2) => note.Position() == note2.Position();
+
+        public static bool IsInvert(this BaseNote note, BaseNote previousNote, float cutAngle)
+        {
+            Vector2 dir = Utils.DirectionFromDownAngle(cutAngle);
+            return note.Position().SignedDistanceToPlane(previousNote.Position(), dir) > 0;  
+        }
+
         public static int CutDirFromVector(Vector2 direction)
         {
             direction = direction.normalized;

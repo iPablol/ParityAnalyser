@@ -111,7 +111,6 @@ echo what
 )
 
 copy /Y "$(TargetDir)ParityAnalyser.dll" "%25OUTDIR%25\ParityAnalyser.dll"
-copy /Y "$(TargetDir)ParityAnalyser.pdb" "%25OUTDIR%25\ParityAnalyser.pdb"
 </PostBuildEvent>
   </PropertyGroup>
 </Project>

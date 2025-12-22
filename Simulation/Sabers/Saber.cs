@@ -156,7 +156,7 @@ namespace ParityAnalyser.Sim
                 //Debug.Log($"Slider at: {nextObject.Time()} with {slider.noteCount} notes");
                 if (slider.isDotStack)
                 {
-                    slider = slider.OrderFullDotStack(transform.position, wristAngle, parity);
+                    slider = slider.OrderFullDotStack(previousObject, wristAngle, parity);
                 }
                 for (int i = 0; i < slider.noteCount; i++)
                 {
@@ -252,15 +252,19 @@ namespace ParityAnalyser.Sim
         protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true, bool isSlider = false)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset)
-            // TODO: optimize angle for consecutive dots, dot inverts cause problems with bombs (example: Deimos)
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
             if (prevNote != null)
             {
-                if (nextNote.CutDirection == (int)CutDir.ANY || isSlider)
+                bool shouldKeepAngle = prevNote.IsInlineWith(nextNote) || nextNote.IsInvert(prevNote, wristAngle + parityAngle);
+                if (shouldKeepAngle && ParityAnalyser.options.renderInlinesAndInverts)
                 {
-                    // TODO: maybe check inlines (example: also abstruse dilemma) and inverts (example: Bad apple (Bitz) )
+                    ParityAnalyser.outline.AddToCache(nextNote, Color.cyan);
+                }
+                if ((nextNote.CutDirection == (int)CutDir.ANY && !shouldKeepAngle) || isSlider)
+                {
+                    // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
                     // also try different directions if the swing collides with bombs
-                    if (moveToDot)
+                    if (moveToDot || isSlider)
                         MoveTo(prevNote.Position());
                     Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
                     if (!parity.Bool()) dir = -dir;
@@ -312,14 +316,14 @@ namespace ParityAnalyser.Sim
             Debug.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
 
             bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Mathf.Abs(roll) >= 135f || Mathf.Abs(wristAngle + roll) >= 180f);
-            if (shouldResetDueToAngle)
+            if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ roll > 30f)
             {
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
                 yield break;
             }
             bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
-            // Dots are not recognised (example: chimera dragons 1030)
+            // Dots are not recognised (example: chimera dragons beat 1030, deimos beat 688)
             if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToRoll))
             {
                 Debug.Log($"Angle: {shouldResetDueToAngle} - wa: {wristAngle} - r: {roll} - c: {RollsComfortably(roll)}\n" +
@@ -362,6 +366,7 @@ namespace ParityAnalyser.Sim
         {
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
+            MoveTo(transform.position + transform.up);
             if (group.singleBeat)
             {
                 // This foreach should only have 1 iteration
@@ -370,7 +375,7 @@ namespace ParityAnalyser.Sim
                     DodgeBombs(group, cluster);
                     foreach (var hitbox in cluster.GetHitbox())
                     {
-                        float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote, false);
+                        float swingOffset = parityAngle, roll = WristRoll(group.startNote, group.endNote, false);
                         float startAngle = wristAngle + swingOffset;
 
                         bool intersects = Collision.SwingPathIntersects(hilt, startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster.aBomb);
@@ -391,7 +396,7 @@ namespace ParityAnalyser.Sim
                 foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs())
                 {
                     Start:
-                    float swingOffset = parity.Bool() ? 180f : 0f, roll = WristRoll(group.startNote, group.endNote, false);
+                    float swingOffset = parityAngle, roll = WristRoll(group.startNote, group.endNote, false);
                     float startAngle = wristAngle + swingOffset;
                     // Maybe should make a function to combine single note and slider desired angle
                     // TODO: Hatatagami beat 1350
@@ -411,7 +416,7 @@ namespace ParityAnalyser.Sim
                     float nextAngle = endAngle - swingOffset;
                     bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
                     //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
-                    if (unnatural && nextAngle != wristAngle)
+                    if (unnatural && nextAngle != wristAngle && !hasReset)
                     {
                         yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}");
                         freeze = false;
@@ -469,6 +474,16 @@ namespace ParityAnalyser.Sim
                 float magnitude = timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude;
 
                 totalForce += dir * magnitude;
+
+                //float centerForce = 2f;
+                //if (bomb.BottomRow())
+                //{
+                //    totalForce += Vector2.up * centerForce;
+                //}
+                //else if (bomb.TopRow())
+                //{
+                //    totalForce += Vector2.down * centerForce;
+                //}
             }
             totalForce /= count;
             totalForce += RestForce();
@@ -543,8 +558,8 @@ namespace ParityAnalyser.Sim
         protected Vector2 RestForce()
         {
             Vector2 dir = (restPoint - (Vector2)transform.position).normalized;
-            float radius = 0.1f;
-            float scaleFactor = 1f, power = 1.1f;
+            float radius = 1f;
+            float scaleFactor = 1f, power = 1f;
             float magnitude = Mathf.Min(scaleFactor * Mathf.Max(0, Mathf.Pow(Vector2.Distance(restPoint, transform.position) - radius, power)), 4f);
             return dir * magnitude;
         }
@@ -562,6 +577,8 @@ namespace ParityAnalyser.Sim
                                                 || (wristAngle == 0f && roll == 0f);
 
         public float wristAngle { get; protected set; }
+
+        public float parityAngle => (parity.Bool() ? 180f : 0f);
 
         public static readonly float length = 2.1f;
         public Vector3 hilt => this.transform.position;
