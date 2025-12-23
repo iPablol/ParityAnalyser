@@ -47,7 +47,7 @@ namespace ParityAnalyser.Sim
                                 row - 0.5f,
                                 col - startCol.Value,
                                 1,
-                                scale: 1.5f * Simulation.bombRadius
+                                scale: 1.75f * Simulation.bombRadius
                             );
                             startCol = null;
                         }
@@ -68,7 +68,7 @@ namespace ParityAnalyser.Sim
                         row - 0.5f,
                         4 - startCol.Value,
                         1,
-                        scale: 1.5f * Simulation.bombRadius
+                        scale: 1.75f * Simulation.bombRadius
                     );
                 }
             }
@@ -100,7 +100,7 @@ namespace ParityAnalyser.Sim
                         center,
                         new Vector2(length, cellSize),
                         rotation,
-                        scale: 1.5f * Simulation.bombRadius
+                        scale: 1.75f * Simulation.bombRadius
                     );
                 }
                 yield return rects[i];

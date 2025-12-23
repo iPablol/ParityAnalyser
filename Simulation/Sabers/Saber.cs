@@ -176,7 +176,7 @@ namespace ParityAnalyser.Sim
                 //Debug.Log($"Slider at: {nextObject.Time()} with {slider.noteCount} notes");
                 if (slider.isDotStack)
                 {
-                    slider = slider.OrderFullDotStack(previousObject, wristAngle, parity);
+                    slider = slider.OrderFullDotStack(previousObject, this);
                 }
                 foreach ((float angle, BaseNote nextNote) in slider.GetAngles(this))
                 {
@@ -288,7 +288,7 @@ namespace ParityAnalyser.Sim
             {
                 if (slider.isDotStack)
                 {
-                    slider = slider.OrderFullDotStack(new Note(prevNote), wristAngle, parity);
+                    slider = slider.OrderFullDotStack(new Note(prevNote), this);
                 }
                 angle = slider.GetAngles(this, !moveToDot).First().Item1;
             }
@@ -408,6 +408,7 @@ namespace ParityAnalyser.Sim
 
                 // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
                 float nextAngle = endAngle - swingOffset;
+                // Da mama 4-wide stacks roll to the other side
                 bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
                 //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
                 if (!group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
@@ -506,7 +507,7 @@ namespace ParityAnalyser.Sim
             totalForce /= count;
             //totalForce += RestForce();
 
-            // TODO: tweak force (example: MARENOL beat 42)
+            // TODO: tweak force (example: MARENOL beat 42 and da mama drop)
             Vector2 dirToNote = (group.endNote.Position() - hiltPos).normalized;
             float timeDistanceToNote = group.endNote.JsonTime - currentCluster.time,
                 distanceToNote = Vector2.Distance(group.endNote.Position(), hiltPos),
