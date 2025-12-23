@@ -381,82 +381,70 @@ namespace ParityAnalyser.Sim
             // Simulate hit momentum if above middle row (bottom row hits are more controlled)
             if (transform.position.y > 1)
                 MoveTo(transform.position + transform.up);
-            if (group.singleBeat)
-            {
-                // This foreach should only have 1 iteration
-                foreach (var cluster in group.GetClusters(ParityAnalyser.options.bombClusterMerging))
-                {
-                    DodgeBombs(group, cluster);
-                    if (debug)
-                        cluster.Render();
-                    foreach (var hitbox in cluster.GetHitbox())
-                    {
-                        float swingOffset = parityAngle, roll = WristRoll(group.startNote, group.endNote, false);
-                        float startAngle = wristAngle + swingOffset;
 
-                        bool intersects = Collision.SwingPathIntersects(hilt, startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster.aBomb);
+            bool hasRolledAway = false;
+            bool isFirstCluster = true;
+            foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
+            {
+                DodgeBombs(group, cluster1, debug);
+                Start:
+                float roll = WristRoll(group.startNote, group.endNote, false);
+                float swingOffset = parityAngle;
+                float startAngle = wristAngle + swingOffset;
+                // Maybe should make a function to combine single note and slider desired angle
+                float endAngle =
+                    (hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
+                    wristAngle + roll + swingOffset);
+
+                // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
+                float nextAngle = endAngle - swingOffset;
+                bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
+                //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
+                if (!group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
+                {
+                    yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}", wristAngle);
+                    goto Start;
+                }
+                float lerpFactor = (endTime - startTime);
+
+                float cluster1LerpAmount = (cluster1.time - startTime) / lerpFactor;
+                float cluster2LerpAmount = (cluster2.time - startTime) / lerpFactor;
+                if (debug)
+                    cluster1.Render();
+
+                foreach (OrientedRect hitbox in cluster1.GetHitbox())
+                {
+                    if (group.singleBeat)
+                    {
+                        // Collision detection is capped at 180 degrees so if we find a higher roll we should interpolate multiple times in the same cluster
+                        bool intersects = Collision.SwingPathIntersects(hilt, startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster1.aBomb);
                         if (intersects)
                         {
-                            yield return Reset(cluster.aBomb, parity.Other(), "Bomb projection intersects");
+                            yield return Reset(cluster1.aBomb, parity.Other(), "Bomb projection intersects");
                             break;
                         }
-
                     }
-                }
-            }
-            else
-            {
-                bool freeze = group.endNote.IsDot();
-                bool frozen = false;
-                float freezeAngle = 0f;
-                float roll = WristRoll(group.startNote, group.endNote, false);
-
-                
-                foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
-                {
-                    DodgeBombs(group, cluster1, debug);
-                    Start:
-                    float swingOffset = parityAngle;
-                    float startAngle = wristAngle + swingOffset;
-                    // Maybe should make a function to combine single note and slider desired angle
-                    float endAngle =
-                        (hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
-                        wristAngle + roll + swingOffset);
-                    if (freeze && !frozen)
+                    else if (isFirstCluster)
                     {
-                        freezeAngle = endAngle;
-                        frozen = true;
+                        bool intersects = Collision.SwingPathIntersects(hilt, startAngle, Mathf.Lerp(startAngle, endAngle, cluster2LerpAmount), hitbox, debug, cluster1.aBomb);
+                        if (intersects)
+                        {
+                            yield return Reset(cluster1.aBomb, parity.Other(), "Bomb projection intersects");
+                            break;
+                        }
                     }
-                    else if (frozen)
-                    {
-                        endAngle = freezeAngle;
-                    }
-                    // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
-                    float nextAngle = endAngle - swingOffset;
-                    bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
-                    //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
-                    if (unnatural && nextAngle != wristAngle && !hasReset)
-                    {
-                        yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}", wristAngle);
-                        freeze = false;
-                        goto Start;
-                    }
-                    float lerpFactor = (endTime - startTime);
-
-                    float bomb1LerpAmount = (cluster1.time - startTime) / lerpFactor;
-                    float bomb2LerpAmount = (cluster2.time - startTime) / lerpFactor;
-                    if (debug)
-                        cluster1.Render();
-                    foreach (OrientedRect hitbox in cluster1.GetHitbox())
-                    {
-                        bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), hitbox, debug, cluster1.aBomb);
+                    else
+                    { 
+                        bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, cluster1LerpAmount), Mathf.Lerp(startAngle, endAngle, cluster2LerpAmount), hitbox, debug, cluster1.aBomb);
 
                         if (swingPathCollides)
                         {
-                            if (group.endNote.IsDot() && Mathf.Abs(roll) < 30f)
+                            if (!hasRolledAway && group.endNote.IsDot() && Mathf.Abs(roll) < 30f)
                             {
                                 // Roll to preferred direction or resting position?
-                                roll += -Mathf.Sign(wristAngle) * 45f;
+                                // TODO: angle selection logic (pink diamond beat 213)
+                                wristAngle += -Mathf.Sign(wristAngle) * 45f;
+                                hasRolledAway = true;
                                 goto Start;
                             }
                             startTime = cluster1.time;
@@ -464,50 +452,56 @@ namespace ParityAnalyser.Sim
                             break;
                         }
                     }
-                    // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
-                    DodgeBombs(group, cluster1, debug);
                 }
+                isFirstCluster = false;
+                // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
+                DodgeBombs(group, cluster1, debug);
             }
+            
             yield break;
         }
 
         private void DodgeBombs(BombGroup group, BombCluster currentCluster, bool debug = false)
         {
-            // Maybe should move towards next note
             Vector2 hiltPos = new Vector2(hilt.x, hilt.y);
 
             Vector2 totalForce = Vector2.zero;
 
             int count = 0;
+            float countThreshold = 0.2f;
             foreach (BaseNote bomb in group.After(currentCluster.time))
             {
-                count++;
-                float effectRadius = 1.2f;
+                float effectRadius = 0.6f;
                 Vector2 bombPos = bomb.BombDodgeCenter();
                 float timeDistance = bomb.JsonTime - currentCluster.time;
                 float projectionDistance = Vector2.Distance(bombPos, hiltPos);
 
                 Vector2 dir = (hiltPos - bombPos).normalized;
 
-                /* Pink diamond: beat 130 upcoming bombs push the saber into current bombs (maybe take current bombs into account but favour distance over time?)
-                 * beat 215 check left saber, also right saber doesn't seem to move
-                 * beat 223 forces saber angle (maybe fix with exploration?)
-                 */
-                float globalFactor = 1.02f;
-                float timeScaleFactor = 0.85f, distanceScaleFactor = 0.7f;
+                float globalFactor = 2f;
+                float timeScaleFactor = 0.87f, distanceScaleFactor = 1f;
 
-                float timeSpread = 0.4f, timeShift = 0.3f;
+                float timeSpread = 0.3f, timeShift = 0.15f;
                 float timeMagnitude = Mathf.Exp(-1f * Mathf.Pow((timeDistance - timeShift) / timeSpread, 2));
 
-                float normalized = projectionDistance / effectRadius;
-                float distanceMagnitude = Mathf.Exp(-normalized * normalized) / projectionDistance;
+                float distanceMagnitude = Mathf.Exp(-projectionDistance * projectionDistance) / effectRadius;
 
-                float magnitude = globalFactor * (timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude);
+                float magnitude = globalFactor * (timeScaleFactor * timeMagnitude * distanceScaleFactor * distanceMagnitude);
 
                 totalForce += dir * magnitude;
+                if (magnitude >= countThreshold) count++;
             }
+            if (count == 0) count++;
             totalForce /= count;
             //totalForce += RestForce();
+
+            Vector2 dirToNote = (group.endNote.Position() - hiltPos).normalized;
+            float timeDistanceToNote = group.endNote.JsonTime - currentCluster.time,
+                distanceToNote = Vector2.Distance(group.endNote.Position(), hiltPos),
+                distanceDamp = 4f / (group.endNote.JsonTime - group.startNote.JsonTime), // Move more for longer bomb groups and viceversa
+                noteForce = Mathf.Clamp(-Mathf.Log(timeDistanceToNote) * (distanceToNote / distanceDamp), 0, distanceToNote);
+            totalForce += dirToNote * noteForce;
+
             MoveTo(transform.position + (Vector3)totalForce);
             if (debug)
             {

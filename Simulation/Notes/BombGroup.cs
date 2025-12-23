@@ -42,7 +42,8 @@ namespace ParityAnalyser.Sim
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.ConvertAll<BaseNote>(note => note.Value).Append(nextObject.FirstNote()).ToList(), false);
         public IEnumerable<(BombCluster, BombCluster)> GetClusterPairs(bool merging = true) => new OverlappingPairIterator<BombCluster>(GetClusters(merging), true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST);
 
-        // Phantom bomb at pink diamond 366
+        // Phantom bomb at pink diamond 236 (fix with threshold)
+        public static readonly float clusterMergeThreshold = 1 / 2f;
         public IEnumerable<BombCluster> GetClusters(bool merging = true)
         {   
             if (singleBeat)
@@ -59,9 +60,16 @@ namespace ParityAnalyser.Sim
                 foreach ((BombCluster cluster1, BombCluster cluster2) in new OverlappingPairIterator<BombCluster>(singleBeatClusters, true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST))
                 {
                     // Merge clusters and filter for unique position
-                    yield return new BombCluster((from bomb in cluster1.notes.Concat(cluster2.notes)
-                                                  group bomb by bomb.FirstNote().Position() into g
-                                                  select g.First()).ToList(), cluster1.time);
+                    if (cluster2.time -  cluster1.time <= clusterMergeThreshold)
+                    {
+                        yield return new BombCluster((from bomb in cluster1.notes.Concat(cluster2.notes)
+                                                      group bomb by bomb.FirstNote().Position() into g
+                                                      select g.First()).ToList(), cluster1.time);
+                    }
+                    else
+                    {
+                        yield return cluster1;
+                    }
                 }
             }
             else
