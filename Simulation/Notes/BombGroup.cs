@@ -43,7 +43,7 @@ namespace ParityAnalyser.Sim
         public IEnumerable<(BombCluster, BombCluster)> GetClusterPairs(bool merging = true) => new OverlappingPairIterator<BombCluster>(GetClusters(merging), true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST);
 
         // Phantom bomb at pink diamond 236 (fixed with threshold)
-        public static readonly float clusterMergeThreshold = 5 / 8f; // MARENOL has 1/2 beat bombs at 208
+        public static readonly float clusterMergeThreshold = 3 / 8f; // MARENOL has 1/2 beat bombs at 208
         public IEnumerable<BombCluster> GetClusters(bool merging = true)
         {   
             if (singleBeat)

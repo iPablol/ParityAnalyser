@@ -256,7 +256,7 @@ namespace ParityAnalyser.Sim
 
         public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true, bool isSlider = false)
         {
-            // IMPORTANT: check Kyuukou dot at 160 (causes reset)
+            // IMPORTANT: check Kyuukou dot at 160 (causes reset when using max 315 roll)
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
             if (prevNote != null)
             {
@@ -268,7 +268,6 @@ namespace ParityAnalyser.Sim
                 if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider)
                 {
                     // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
-                    // also try different directions if the swing collides with bombs
                     if (moveToDot || isSlider)
                         MoveTo(prevNote.Position());
                     Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
@@ -323,7 +322,7 @@ namespace ParityAnalyser.Sim
             }
             // Otherwise try common resets
 
-            // TODO: resets marked by bombs to the sides of the note
+            // TODO?: resets marked by bombs to the sides of the note
 
             float roll = WristRoll(group.startNote, group.nextObject, false);
 
@@ -346,7 +345,7 @@ namespace ParityAnalyser.Sim
             }
             bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
-            // Dots are not recognised (example: chimera dragons beat 1030, deimos beat 688)
+            
             if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToRoll))
             {
                 Debug.Log($"Angle: {shouldResetDueToAngle} - wa: {wristAngle} - r: {roll} - c: {RollsComfortably(roll)}\n" +
@@ -402,7 +401,7 @@ namespace ParityAnalyser.Sim
                 float roll = WristRoll(group.startNote, group.nextObject, false);
                 float swingOffset = parityAngle;
                 float startAngle = wristAngle + swingOffset;
-                // Maybe should make a function to combine single note and slider desired angle
+                // Sound chimera beat 609: left saber is forced to have an upright angle but next note is diagonal (can be fixed by turning cluster merging off)
                 float endAngle =
                     (hasReset ? DesiredAngle((CutDir)group.endNote.CutDirection) + swingOffset :
                     wristAngle + roll + swingOffset);

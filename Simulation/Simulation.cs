@@ -46,6 +46,7 @@ namespace ParityAnalyser.Sim
 
         public void Run()
         {
+            Debug.Log($"Bomb cluster merging is: {(ParityAnalyser.options.bombClusterMerging ? "ON" : "OFF")}");
             Debug.Log("-------------- Left Saber --------------");
             if (leftSaber != null)
             {
