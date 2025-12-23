@@ -43,9 +43,8 @@ namespace ParityAnalyser.Sim
          *  select closest angle to wrist angle
          * */
 
-        public IEnumerable<(float, BaseNote)> GetAngles(Saber saber, bool returnToStart = false)
+        public IEnumerable<(float, BaseNote)> GetAngles(Saber saber)
         {
-            if (returnToStart) saber.PushToStack(Notes().ElementAt(0));
             BaseNote firstNote = null, secondNote = null;
             for (int i = 0; i < noteCount; i++)
             {
@@ -61,14 +60,13 @@ namespace ParityAnalyser.Sim
                     secondNote = Notes().ElementAt(i + 1);
                 }
                 BaseNote nextNote = isLast ? secondNote : firstNote;
-                float angle = saber.CutAngle(firstNote, secondNote, true, true);
+                float angle = saber.CutAngle(firstNote, secondNote, true);
                 if (angle == 180f && saber is RightSaber)
                 {
                     angle = -180f;
                 }
                 yield return (angle, nextNote);
             }
-            if (returnToStart) saber.PopStack();
         }
 
         public SliderGroup OrderFullDotStack(ISimulationObject lastObject, Saber saber)
@@ -116,8 +114,8 @@ namespace ParityAnalyser.Sim
                     SliderGroup topToBottom = Order(StackOrder.TopToBottom);
                     SliderGroup bottomToTop = Order(StackOrder.BottomToTop);
 
-                    float roll1 = Mathf.Abs(wristAngle - topToBottom.GetAngles(saber, true).First().Item1);
-                    float roll2 = Mathf.Abs(wristAngle - bottomToTop.GetAngles(saber, true).First().Item1);
+                    float roll1 = Mathf.Abs(wristAngle - topToBottom.GetAngles(saber).First().Item1);
+                    float roll2 = Mathf.Abs(wristAngle - bottomToTop.GetAngles(saber).First().Item1);
 
                     return roll1 <= roll2 ? topToBottom : bottomToTop;
                     //return Order(Mathf.Abs(wristAngle) >= 90f ? StackOrder.TopToBottom : StackOrder.BottomToTop);

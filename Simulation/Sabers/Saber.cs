@@ -27,12 +27,15 @@ namespace ParityAnalyser.Sim
 
         public BaseNote PopStack()
         {
+            if (stack.Count() == 0) return null;
             SaberSnapshot snap = stack.Pop();
             transform.position = snap.position;
             transform.rotation = snap.rotation;
             parity = snap.parity;
             wristAngle = snap.wristAngle;
             hasReset = snap.reset;
+            Debug.Log("\nStack popped:");
+            Debug.Log($"Pos: {transform.position}, wa: {wristAngle}, parity: {parity.ToString()}, time: {snap.note?.JsonTime ?? 0f}\n");
             return snap.note;
         }
 
@@ -221,7 +224,7 @@ namespace ParityAnalyser.Sim
         {
             BaseNote previousNote = previousObject is BombGroup group ? group.startNote : previousObject?.LastNote() ?? null;
             BaseNote nextNote = nextObject.FirstNote();
-            float desiredAngle = CutAngle(previousNote, nextNote);
+            float desiredAngle = CutAngle(previousNote, nextNote, false);
             MoveTowardsNote(desiredAngle, nextNote);
 
         }
@@ -254,7 +257,7 @@ namespace ParityAnalyser.Sim
             }
         }
 
-        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true, bool isSlider = false)
+        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset when using max 315 roll)
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
@@ -268,9 +271,7 @@ namespace ParityAnalyser.Sim
                 if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider)
                 {
                     // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
-                    if (moveToDot || isSlider)
-                        MoveTo(prevNote.Position());
-                    Vector2 dir = (nextNote.Position() - (Vector2)transform.position).normalized;
+                    Vector2 dir = (nextNote.Position() - prevNote.Position()).normalized;
                     if (!parity.Bool()) dir = -dir;
                     float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
                     desiredAngle = Mathf.DeltaAngle(0f, signedAngle);
@@ -281,7 +282,7 @@ namespace ParityAnalyser.Sim
             return desiredAngle;
         }
 
-        protected virtual float WristRoll(BaseNote prevNote, ISimulationObject nextObject, bool moveToDot = true)
+        protected virtual float WristRoll(BaseNote prevNote, ISimulationObject nextObject)
         {
             float angle = 0f;
             if (nextObject is SliderGroup slider)
@@ -290,11 +291,11 @@ namespace ParityAnalyser.Sim
                 {
                     slider = slider.OrderFullDotStack(new Note(prevNote), this);
                 }
-                angle = slider.GetAngles(this, !moveToDot).First().Item1;
+                angle = slider.GetAngles(this).First().Item1;
             }
             else
             {
-                angle = CutAngle(prevNote, nextObject.FirstNote(), moveToDot);
+                angle = CutAngle(prevNote, nextObject.FirstNote(), false);
             }
 
             return Mathf.DeltaAngle(wristAngle, angle);
@@ -324,7 +325,7 @@ namespace ParityAnalyser.Sim
 
             // TODO?: resets marked by bombs to the sides of the note
 
-            float roll = WristRoll(group.startNote, group.nextObject, false);
+            float roll = WristRoll(group.startNote, group.nextObject);
 
             List<BombCondition> bottomRowReset = [
                 (note) => note.LeftOuterLane() && note.BottomRow(),
@@ -398,7 +399,7 @@ namespace ParityAnalyser.Sim
             {
                 DodgeBombs(group, cluster1, debug);
                 Start:
-                float roll = WristRoll(group.startNote, group.nextObject, false);
+                float roll = WristRoll(group.startNote, group.nextObject);
                 float swingOffset = parityAngle;
                 float startAngle = wristAngle + swingOffset;
                 // Sound chimera beat 609: left saber is forced to have an upright angle but next note is diagonal (can be fixed by turning cluster merging off)

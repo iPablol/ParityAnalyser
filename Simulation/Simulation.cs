@@ -82,6 +82,8 @@ namespace ParityAnalyser.Sim
                 }
                 foreach ((ISimulationObject note1, ISimulationObject note2) in this.rightSaber.GetPairs())
                 {
+                    //Debug.Log($"({note1.Time()} - {note2.Time()}) Prev: {note1.GetType()}, Next: {note2.GetType()}");
+                    //Debug.Log("");
                     foreach (SaberSnapshot snap in this.rightSaber.Swing(note1, note2))
                     {
                         blueParities.Add(snap);
