@@ -42,8 +42,8 @@ namespace ParityAnalyser.Sim
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.ConvertAll<BaseNote>(note => note.Value).Append(nextObject.FirstNote()).ToList(), false);
         public IEnumerable<(BombCluster, BombCluster)> GetClusterPairs(bool merging = true) => new OverlappingPairIterator<BombCluster>(GetClusters(merging), true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST);
 
-        // Phantom bomb at pink diamond 236 (fix with threshold)
-        public static readonly float clusterMergeThreshold = 1 / 2f;
+        // Phantom bomb at pink diamond 236 (fixed with threshold)
+        public static readonly float clusterMergeThreshold = 5 / 8f; // MARENOL has 1/2 beat bombs at 208
         public IEnumerable<BombCluster> GetClusters(bool merging = true)
         {   
             if (singleBeat)
@@ -114,6 +114,13 @@ namespace ParityAnalyser.Sim
             prevObject = nextGroup.prevObject,
             nextObject = nextGroup.nextObject,
             bombs = bombs.Concat(nextGroup.bombs).ToList()
+        };
+
+        public BombGroup MergeToPrevious(BombGroup previousGroup) => this with
+        {
+            prevObject = previousGroup.prevObject,
+            nextObject = previousGroup.nextObject,
+            bombs = previousGroup.bombs.Concat(bombs).ToList()
         };
 
     }

@@ -43,6 +43,34 @@ namespace ParityAnalyser.Sim
          *  select closest angle to wrist angle
          * */
 
+        public IEnumerable<(float, BaseNote)> GetAngles(Saber saber, bool returnToStart = false)
+        {
+            if (returnToStart) saber.PushToStack(Notes().ElementAt(0));
+            BaseNote firstNote = null, secondNote = null;
+            for (int i = 0; i < noteCount; i++)
+            {
+                bool isLast = i == noteCount - 1;
+                if (isLast)
+                {
+                    firstNote = Notes().ElementAt(i - 1);
+                    secondNote = Notes().ElementAt(i);
+                }
+                else
+                {
+                    firstNote = Notes().ElementAt(i);
+                    secondNote = Notes().ElementAt(i + 1);
+                }
+                BaseNote nextNote = isLast ? secondNote : firstNote;
+                float angle = saber.CutAngle(firstNote, secondNote, true, true);
+                if (angle == 180f && saber is RightSaber)
+                {
+                    angle = -180f;
+                }
+                yield return (angle, nextNote);
+            }
+            if (returnToStart) saber.PopStack();
+        }
+
         public SliderGroup OrderFullDotStack(ISimulationObject lastObject, float wristAngle, Parity parity)
         {
             Vector2 pos = lastObject is BombGroup group ? group.startNote.Position() : lastObject.LastNote().Position();

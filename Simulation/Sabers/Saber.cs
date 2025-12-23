@@ -23,9 +23,9 @@ namespace ParityAnalyser.Sim
     {
         private Stack<SaberSnapshot> stack = [];
 
-        private void PushToStack(BaseNote note) => stack.Push(TakeSnapshot(note));
+        public void PushToStack(BaseNote note) => stack.Push(TakeSnapshot(note));
 
-        private BaseNote PopStack()
+        public BaseNote PopStack()
         {
             SaberSnapshot snap = stack.Pop();
             transform.position = snap.position;
@@ -36,7 +36,7 @@ namespace ParityAnalyser.Sim
             return snap.note;
         }
 
-        private void ClearStack() => stack.Clear();
+        public void ClearStack() => stack.Clear();
 
         public SaberSnapshot TakeSnapshot(BaseNote note) => new(note, transform.position, transform.rotation, parity, wristAngle, hasReset);
         public List<ISimulationObject> notes { get; private set; } = [];
@@ -102,6 +102,16 @@ namespace ParityAnalyser.Sim
 
                     merged.Add(g1);
                 }
+                // all of the bombgroup is in the same beat as the previous one (MARENOL beat 52)
+                else if (i > 1 && this.notes[i] is BombGroup shortGroup && this.notes[i - 2] is BombGroup longGroup && shortGroup.maxTime.NearlyEqualTo(longGroup.nextObject.Time(), 1 / 8f) && shortGroup.minTime.NearlyEqualTo(longGroup.nextObject.Time(), 1 / 8f))
+                {
+                    var mergedGroup = shortGroup.MergeToPrevious(longGroup);
+
+                    this.notes[i - 2] = mergedGroup;
+
+                    merged.Add(longGroup);
+                    merged.Add(shortGroup);
+                }
             }
 
             this.notes = this.notes.Where(o => !merged.Contains(o)).ToList();
@@ -162,36 +172,19 @@ namespace ParityAnalyser.Sim
             }
             else if (nextObject is SliderGroup slider)
             {
-                BaseNote firstNote = null, secondNote = null;
+                
                 //Debug.Log($"Slider at: {nextObject.Time()} with {slider.noteCount} notes");
                 if (slider.isDotStack)
                 {
                     slider = slider.OrderFullDotStack(previousObject, wristAngle, parity);
                 }
-                for (int i = 0; i < slider.noteCount; i++)
+                foreach ((float angle, BaseNote nextNote) in slider.GetAngles(this))
                 {
-                    bool isLast = i == slider.noteCount - 1;
-                    if (isLast)
-                    {
-                        firstNote = slider.Notes().ElementAt(i - 1);
-                        secondNote = slider.Notes().ElementAt(i);
-                    }
-                    else
-                    {
-                        firstNote = slider.Notes().ElementAt(i);
-                        secondNote = slider.Notes().ElementAt(i + 1);
-                    }
-                    BaseNote nextNote = isLast ? secondNote : firstNote;
-                    float angle = CutAngle(firstNote, secondNote, true, true);
-                    if (angle == 180f && this is RightSaber)
-                    {
-                        angle = -180f;
-                    }
                     MoveTowardsNote(angle, nextNote);
                     yield return TakeSnapshot(nextNote);
                 }
                 
-                    this.parity = this.parity.Other();
+                this.parity = this.parity.Other();
                 
             }
             else
@@ -261,7 +254,7 @@ namespace ParityAnalyser.Sim
             }
         }
 
-        protected virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true, bool isSlider = false)
+        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true, bool isSlider = false)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset)
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
@@ -289,7 +282,24 @@ namespace ParityAnalyser.Sim
             return desiredAngle;
         }
 
-        protected virtual float WristRoll(BaseNote prevNote, BaseNote nextNote, bool moveToDot = true) => Mathf.DeltaAngle(wristAngle, CutAngle(prevNote, nextNote, moveToDot));
+        protected virtual float WristRoll(BaseNote prevNote, ISimulationObject nextObject, bool moveToDot = true)
+        {
+            float angle = 0f;
+            if (nextObject is SliderGroup slider)
+            {
+                if (slider.isDotStack)
+                {
+                    slider = slider.OrderFullDotStack(new Note(prevNote), wristAngle, parity);
+                }
+                angle = slider.GetAngles(this, !moveToDot).First().Item1;
+            }
+            else
+            {
+                angle = CutAngle(prevNote, nextObject.FirstNote(), moveToDot);
+            }
+
+            return Mathf.DeltaAngle(wristAngle, angle);
+        }
 
         private IEnumerable<SaberSnapshot> HandleBombGroup(BombGroup group)
         {
@@ -315,7 +325,7 @@ namespace ParityAnalyser.Sim
 
             // TODO: resets marked by bombs to the sides of the note
 
-            float roll = WristRoll(group.startNote, group.endNote);
+            float roll = WristRoll(group.startNote, group.nextObject, false);
 
             List<BombCondition> bottomRowReset = [
                 (note) => note.LeftOuterLane() && note.BottomRow(),
@@ -330,6 +340,7 @@ namespace ParityAnalyser.Sim
             bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Mathf.Abs(roll) >= 135f || Mathf.Abs(wristAngle + roll) >= 180f);
             if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Mathf.Abs(roll) > 30f)
             {
+                // MARENOL beat 58: left saber rolls clockwise, conflicts with B.B.K.K.B.K.K
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
                 yield break;
             }
@@ -388,7 +399,7 @@ namespace ParityAnalyser.Sim
             {
                 DodgeBombs(group, cluster1, debug);
                 Start:
-                float roll = WristRoll(group.startNote, group.endNote, false);
+                float roll = WristRoll(group.startNote, group.nextObject, false);
                 float swingOffset = parityAngle;
                 float startAngle = wristAngle + swingOffset;
                 // Maybe should make a function to combine single note and slider desired angle
@@ -412,6 +423,7 @@ namespace ParityAnalyser.Sim
                 if (debug)
                     cluster1.Render();
 
+                // TODO: fix bombsage single bomb bullshit (example: MARENOL at the beginning)
                 foreach (OrientedRect hitbox in cluster1.GetHitbox())
                 {
                     if (group.singleBeat)
@@ -495,6 +507,7 @@ namespace ParityAnalyser.Sim
             totalForce /= count;
             //totalForce += RestForce();
 
+            // TODO: tweak force (example: MARENOL beat 42)
             Vector2 dirToNote = (group.endNote.Position() - hiltPos).normalized;
             float timeDistanceToNote = group.endNote.JsonTime - currentCluster.time,
                 distanceToNote = Vector2.Distance(group.endNote.Position(), hiltPos),
