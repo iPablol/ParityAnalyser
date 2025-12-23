@@ -287,7 +287,7 @@ namespace ParityAnalyser
             return Vector2.Dot(p - planePoint, n);
         }
 
-        public static bool NearlyEqual(this float a, float b, float tolerance = 0.1f)
+        public static bool NearlyEqualTo(this float a, float b, float tolerance = 0.1f)
         {
             return Mathf.Abs(a - b) <= tolerance;
         }

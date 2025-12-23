@@ -17,11 +17,11 @@ namespace ParityAnalyser.Sim
         public static readonly float sliderThreshold = 1 / 11.5f; // Thanks yabje for those 1/12 sliders
 
 
-        public static readonly float minSaberX = -0.3f;
-        public static readonly float maxSaberX = 3.3f;
+        public static readonly float minSaberX = -0.2f;
+        public static readonly float maxSaberX = 3.2f;
 
-        public static readonly float minSaberY = -0.3f;
-        public static readonly float maxSaberY = 2.3f;
+        public static readonly float minSaberY = -0.2f;
+        public static readonly float maxSaberY = 2.2f;
 
         public Simulation(List<BaseNote> notes)
         {

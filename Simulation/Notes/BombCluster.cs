@@ -25,14 +25,14 @@ namespace ParityAnalyser.Sim
             foreach (OrientedRect rect in AddDiagonalConnectors(GetAxisHitbox().ToList())) yield return rect;
         }
 
-        public IEnumerable<OrientedRect> GetAxisHitbox()
+        private IEnumerable<OrientedRect> GetAxisHitbox()
         {
             List<BaseNote> bombs = notes.ConvertAll(note => note.Value);
             var filled = new HashSet<Vector2Int>();
 
             for (int row = 0; row < 3; row++)
             {
-                int? startCol = null; // moved outside the column loop
+                int? startCol = null;
                 for (int col = 0; col < 4; col++)
                 {
                     bool hasBomb = bombs.Any(bomb => bomb.PosX == col && bomb.PosY == row);
@@ -46,7 +46,8 @@ namespace ParityAnalyser.Sim
                                 startCol.Value - 0.5f,
                                 row - 0.5f,
                                 col - startCol.Value,
-                                1
+                                1,
+                                scale: 1.5f * Simulation.bombRadius
                             );
                             startCol = null;
                         }
@@ -66,14 +67,15 @@ namespace ParityAnalyser.Sim
                         startCol.Value - 0.5f,
                         row - 0.5f,
                         4 - startCol.Value,
-                        1
+                        1,
+                        scale: 1.5f * Simulation.bombRadius
                     );
                 }
             }
 
         }
 
-        public static IEnumerable<OrientedRect> AddDiagonalConnectors(List<OrientedRect> rects, float cellSize = 1f)
+        private IEnumerable<OrientedRect> AddDiagonalConnectors(List<OrientedRect> rects, float cellSize = 1f)
         {
             for (int i = 0; i < rects.Count; i++)
             {
@@ -85,68 +87,29 @@ namespace ParityAnalyser.Sim
                     if (!AreDiagonallyTouching(a, b))
                         continue;
 
-                    if (HasOrthogonalNeighbor(rects, a, b))
-                        continue;
-
-                    // Direction from A to B (diagonal)
                     Vector2 dir = (b.center - a.center).normalized;
 
-                    // Midpoint between cell centers
                     Vector2 center = (a.center + b.center) * 0.5f;
 
-                    // Diagonal length across a cell
                     float length = cellSize * Mathf.Sqrt(2f);
 
-                    // Rotation from direction
                     float rotation =
                         Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
 
                     yield return new OrientedRect(
                         center,
                         new Vector2(length, cellSize),
-                        rotation
+                        rotation,
+                        scale: 1.5f * Simulation.bombRadius
                     );
                 }
                 yield return rects[i];
             }
         }
-        private static bool AreDiagonallyTouching(OrientedRect a, OrientedRect b)
+        private bool AreDiagonallyTouching(OrientedRect a, OrientedRect b)
         {
-            return
-                (a.xMax == b.xMin && a.yMax == b.yMin) ||
-                (a.xMin == b.xMax && a.yMax == b.yMin) ||
-                (a.xMax == b.xMin && a.yMin == b.yMax) ||
-                (a.xMin == b.xMax && a.yMin == b.yMax);
-        }
-
-        private static Vector2 GetTouchingCorner(OrientedRect from, OrientedRect to)
-        {
-            if (from.xMax == to.xMin && from.yMax == to.yMin)
-                return new Vector2(from.xMax, from.yMax);
-
-            if (from.xMin == to.xMax && from.yMax == to.yMin)
-                return new Vector2(from.xMin, from.yMax);
-
-            if (from.xMax == to.xMin && from.yMin == to.yMax)
-                return new Vector2(from.xMax, from.yMin);
-
-            return new Vector2(from.xMin, from.yMin);
-        }
-
-        private static bool HasOrthogonalNeighbor(List<OrientedRect> rects, OrientedRect a, OrientedRect b)
-        {
-            Vector2 mid = (GetTouchingCorner(a, b) + GetTouchingCorner(b, a)) * 0.5f;
-
-            foreach (var r in rects)
-            {
-                if (r == a || r == b)
-                    continue;
-
-                if (r.Contains(mid))
-                    return true;
-            }
-
-            return false;
+            Vector2 delta = a.center - b.center;
+            return Mathf.Abs(delta.x).NearlyEqualTo(1f) && Mathf.Abs(delta.y).NearlyEqualTo(1f);
         }
 
         public void Render()

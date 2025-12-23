@@ -40,10 +40,10 @@ namespace ParityAnalyser.Sim
         public IEnumerable<BaseNote> Where(BombCondition condition) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).Where(condition);
 
         public IEnumerable<(BaseNote, BaseNote)> GetPairs() => new OverlappingPairIterator<BaseNote>(bombs.ConvertAll<BaseNote>(note => note.Value).Append(nextObject.FirstNote()).ToList(), false);
-        public IEnumerable<(BombCluster, BombCluster)> GetClusterPairs() => new OverlappingPairIterator<BombCluster>(GetClusters(), true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST);
+        public IEnumerable<(BombCluster, BombCluster)> GetClusterPairs(bool merging = true) => new OverlappingPairIterator<BombCluster>(GetClusters(merging), true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST);
 
         // Phantom bomb at pink diamond 366
-        public IEnumerable<BombCluster> GetClusters()
+        public IEnumerable<BombCluster> GetClusters(bool merging = true)
         {   
             if (singleBeat)
             {
@@ -54,13 +54,19 @@ namespace ParityAnalyser.Sim
                                       group bomb by bomb.Time() into cluster
                                       orderby cluster.First().Time()
                                       select new BombCluster(cluster.ToList(), cluster.First().Time()));
-            //foreach (var cluster in singleBeatClusters) yield return cluster;
-            foreach ((BombCluster cluster1, BombCluster cluster2) in new OverlappingPairIterator<BombCluster>(singleBeatClusters, true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST))
+            if (merging)
             {
-                // Merge clusters and filter for unique position
-                yield return new BombCluster((from bomb in cluster1.notes.Concat(cluster2.notes)
-                                              group bomb by bomb.FirstNote().Position() into g
-                                              select g.First()).ToList(), cluster1.time);
+                foreach ((BombCluster cluster1, BombCluster cluster2) in new OverlappingPairIterator<BombCluster>(singleBeatClusters, true, OverlappingPairIterator<BombCluster>.SingleItemBehaviour.PAIR_WITH_LAST))
+                {
+                    // Merge clusters and filter for unique position
+                    yield return new BombCluster((from bomb in cluster1.notes.Concat(cluster2.notes)
+                                                  group bomb by bomb.FirstNote().Position() into g
+                                                  select g.First()).ToList(), cluster1.time);
+                }
+            }
+            else
+            {
+                foreach (var cluster in singleBeatClusters) yield return cluster;
             }
         }
 
@@ -101,6 +107,7 @@ namespace ParityAnalyser.Sim
             nextObject = nextGroup.nextObject,
             bombs = bombs.Concat(nextGroup.bombs).ToList()
         };
+
     }
 
 

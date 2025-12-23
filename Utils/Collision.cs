@@ -35,21 +35,13 @@ namespace ParityAnalyser
 
         public static bool SegmentIntersectsRect(Vector2 p1, Vector2 p2, OrientedRect rect)
         {
-            // 1️⃣ Check if either endpoint is inside the rectangle
             if (rect.Contains(p1) || rect.Contains(p2))
                 return true;
 
-            // 2️⃣ Define rectangle edges as segments
-            Vector2 topLeft = new Vector2(rect.xMin, rect.yMax);
-            Vector2 topRight = new Vector2(rect.xMax, rect.yMax);
-            Vector2 bottomLeft = new Vector2(rect.xMin, rect.yMin);
-            Vector2 bottomRight = new Vector2(rect.xMax, rect.yMin);
-
-            // Rectangle edges
-            if (SegmentIntersectsSegment(p1, p2, topLeft, topRight)) return true;
-            if (SegmentIntersectsSegment(p1, p2, topRight, bottomRight)) return true;
-            if (SegmentIntersectsSegment(p1, p2, bottomRight, bottomLeft)) return true;
-            if (SegmentIntersectsSegment(p1, p2, bottomLeft, topLeft)) return true;
+            return SegmentIntersectsSegment(p1, p2, rect.tl, rect.tr) ||
+                SegmentIntersectsSegment(p1, p2, rect.tr, rect.br) ||
+                SegmentIntersectsSegment(p1, p2, rect.br, rect.bl) ||
+                SegmentIntersectsSegment(p1, p2, rect.bl, rect.tl);
 
             return false;
         }
@@ -202,7 +194,7 @@ namespace ParityAnalyser
                 Utils.RenderLine((Vector3)position, (Vector3)boundaryA, Color.blue, Color.blue, 0.02f, sync: bombForDebug);
                 Utils.RenderLine((Vector3)position, (Vector3)boundaryB, Color.red, Color.red, sync: bombForDebug);
 
-                Utils.RenderRect(hitbox, Color.green, sync: bombForDebug);
+                //Utils.RenderRect(hitbox, Color.green, sync: bombForDebug);
             }
 
 
@@ -220,20 +212,38 @@ namespace ParityAnalyser
             // Bomb intersects the arc
             else if (CircleRectIntersection(position, Saber.length, hitbox, out Vector2 point))
             {
-                // TODO: fix this (example: seraph's trial beat 268)
-                float alpha = Vector2.Angle(boundaryA - position, boundaryB - position);
-                float beta = Vector2.Angle(boundaryA - position, point - position);
-                float gamma = Vector2.Angle(boundaryB - position, point - position);
+                // TODO: check if this is fixed (example: seraph's trial beat 268)
+                Vector2 dir = (point - position).normalized;
+                Vector2 a = (boundaryA - position).normalized;
+                Vector2 b = (boundaryB - position).normalized;
 
+                float dirAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                float alpha = Mathf.Atan2(a.y, a.x) * Mathf.Rad2Deg;
+                float beta = Mathf.Atan2(b.y, b.x) * Mathf.Rad2Deg;
 
-                if (beta < alpha && gamma < alpha)
+                // Wrap all angles to [0, 360)
+                dirAngle = Mathf.Repeat(dirAngle, 360f);
+                alpha = Mathf.Repeat(alpha, 360f);
+                beta = Mathf.Repeat(beta, 360f);
+
+                float delta = Mathf.Repeat(beta - alpha, 360f);  // CCW from alpha → beta
+
+                // If delta > 180, take the complementary (smaller) arc
+                if (delta > 180f)
+                {
+                    float temp = alpha;
+                    alpha = beta;
+                    beta = temp;
+                    delta = 360f - delta;
+                }
+
+                float test = Mathf.Repeat(dirAngle - alpha, 360f);
+                if (test <= delta)
                 {
                     if (debug)
                     {
-                        Debug.Log($"P1 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
-                        //Debug.Log($"A: {boundaryA}, B: {boundaryB}, P1: {p1}");
                         Utils.RenderLine((Vector3)position, (Vector3)point, Color.green, Color.green, sync: bombForDebug);
-                        Debug.Log("P1");
+                        Debug.Log($"alpha: {alpha}, beta: {beta}, dirAngle: {dirAngle}, delta: {delta}");
                     }
                     return true;
                 }
@@ -244,6 +254,7 @@ namespace ParityAnalyser
             }
             return false;
         }
+
     }
 
 }

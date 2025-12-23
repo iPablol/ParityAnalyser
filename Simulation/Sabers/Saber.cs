@@ -78,19 +78,29 @@ namespace ParityAnalyser.Sim
                           orderby simObject.Time() ascending
                           select simObject).ToList();
 
+            
             List<ISimulationObject> merged = [];
             for (int i = 0; i < this.notes.Count - 1; i++)
             {
+                // 2 consecutive bomb groups
                 if (this.notes[i] is BombGroup group1 &&
                     this.notes[i + 1] is BombGroup group2)
                 {
                     var mergedGroup = group1.Merge(group2);
 
-                    // Replace the original group with the merged value
                     this.notes[i] = mergedGroup;
 
-                    // Mark the second group for removal
+                    
                     merged.Add(group2);
+                }
+                // all of the bombgroup is in the same beat as the next one
+                else if (i < this.notes.Count - 2 && this.notes[i] is BombGroup g1 && this.notes[i + 2] is BombGroup g2 && g1.maxTime.NearlyEqualTo(g2.Time(), 1 / 8f) && g1.minTime.NearlyEqualTo(g2.Time(), 1 / 8f))
+                {
+                    var mergedGroup = g1.Merge(g2);
+
+                    this.notes[i + 2] = mergedGroup;
+
+                    merged.Add(g1);
                 }
             }
 
@@ -109,7 +119,7 @@ namespace ParityAnalyser.Sim
                     //foreach (var cluster in clusters)
                     //{
                     //    Debug.Log(cluster.GetHitbox().Count());
-                    //    //cluster.Render();
+                    //    cluster.Render();
                     //}
                     //Debug.Log("");
                 }
@@ -318,7 +328,7 @@ namespace ParityAnalyser.Sim
             Debug.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
 
             bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Mathf.Abs(roll) >= 135f || Mathf.Abs(wristAngle + roll) >= 180f);
-            if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ roll > 30f)
+            if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Mathf.Abs(roll) > 30f)
             {
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
                 yield break;
@@ -368,14 +378,17 @@ namespace ParityAnalyser.Sim
         {
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
-            // Simulate hit momentum
-            MoveTo(transform.position + transform.up);
+            // Simulate hit momentum if above middle row (bottom row hits are more controlled)
+            if (transform.position.y > 1)
+                MoveTo(transform.position + transform.up);
             if (group.singleBeat)
             {
                 // This foreach should only have 1 iteration
-                foreach (var cluster in group.GetClusters())
+                foreach (var cluster in group.GetClusters(ParityAnalyser.options.bombClusterMerging))
                 {
                     DodgeBombs(group, cluster);
+                    if (debug)
+                        cluster.Render();
                     foreach (var hitbox in cluster.GetHitbox())
                     {
                         float swingOffset = parityAngle, roll = WristRoll(group.startNote, group.endNote, false);
@@ -396,13 +409,14 @@ namespace ParityAnalyser.Sim
                 bool freeze = group.endNote.IsDot();
                 bool frozen = false;
                 float freezeAngle = 0f;
+                float roll = WristRoll(group.startNote, group.endNote, false);
+
                 
-                foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs())
+                foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
                 {
-                    // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
                     DodgeBombs(group, cluster1, debug);
                     Start:
-                    float swingOffset = parityAngle, roll = WristRoll(group.startNote, group.endNote, false);
+                    float swingOffset = parityAngle;
                     float startAngle = wristAngle + swingOffset;
                     // Maybe should make a function to combine single note and slider desired angle
                     float endAngle =
@@ -423,7 +437,7 @@ namespace ParityAnalyser.Sim
                     //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
                     if (unnatural && nextAngle != wristAngle && !hasReset)
                     {
-                        yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}");
+                        yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}", wristAngle);
                         freeze = false;
                         goto Start;
                     }
@@ -431,19 +445,27 @@ namespace ParityAnalyser.Sim
 
                     float bomb1LerpAmount = (cluster1.time - startTime) / lerpFactor;
                     float bomb2LerpAmount = (cluster2.time - startTime) / lerpFactor;
+                    if (debug)
+                        cluster1.Render();
                     foreach (OrientedRect hitbox in cluster1.GetHitbox())
                     {
-
                         bool swingPathCollides = Collision.SwingPathIntersects(hilt, Mathf.Lerp(startAngle, endAngle, bomb1LerpAmount), Mathf.Lerp(startAngle, endAngle, bomb2LerpAmount), hitbox, debug, cluster1.aBomb);
 
                         if (swingPathCollides)
                         {
-                            // Please don't let the answer be recursive calls
+                            if (group.endNote.IsDot() && Mathf.Abs(roll) < 30f)
+                            {
+                                // Roll to preferred direction or resting position?
+                                roll += -Mathf.Sign(wristAngle) * 45f;
+                                goto Start;
+                            }
                             startTime = cluster1.time;
                             yield return Reset(cluster1.aBomb, parity.Other(), "Swing path", wristAngle);
                             break;
                         }
                     }
+                    // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
+                    DodgeBombs(group, cluster1, debug);
                 }
             }
             yield break;
@@ -460,7 +482,7 @@ namespace ParityAnalyser.Sim
             foreach (BaseNote bomb in group.After(currentCluster.time))
             {
                 count++;
-                float effectRadius = 0.5f;
+                float effectRadius = 1.2f;
                 Vector2 bombPos = bomb.BombDodgeCenter();
                 float timeDistance = bomb.JsonTime - currentCluster.time;
                 float projectionDistance = Vector2.Distance(bombPos, hiltPos);
@@ -471,25 +493,21 @@ namespace ParityAnalyser.Sim
                  * beat 215 check left saber, also right saber doesn't seem to move
                  * beat 223 forces saber angle (maybe fix with exploration?)
                  */
-                float timeScaleFactor = 1f, distanceScaleFactor = 2f;
-                float timeMagnitude = Mathf.Exp(-1f * Mathf.Pow((timeDistance - 0.3f) / 0.2f, 2));
-                float distanceMagnitude = (1 / (projectionDistance + effectRadius));
-                float magnitude = timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude;
+                float globalFactor = 1.02f;
+                float timeScaleFactor = 0.85f, distanceScaleFactor = 0.7f;
+
+                float timeSpread = 0.4f, timeShift = 0.3f;
+                float timeMagnitude = Mathf.Exp(-1f * Mathf.Pow((timeDistance - timeShift) / timeSpread, 2));
+
+                float normalized = projectionDistance / effectRadius;
+                float distanceMagnitude = Mathf.Exp(-normalized * normalized) / projectionDistance;
+
+                float magnitude = globalFactor * (timeScaleFactor * timeMagnitude + distanceScaleFactor * distanceMagnitude);
 
                 totalForce += dir * magnitude;
-
-                //float centerForce = 2f;
-                //if (bomb.BottomRow())
-                //{
-                //    totalForce += Vector2.up * centerForce;
-                //}
-                //else if (bomb.TopRow())
-                //{
-                //    totalForce += Vector2.down * centerForce;
-                //}
             }
             totalForce /= count;
-            totalForce += RestForce();
+            //totalForce += RestForce();
             MoveTo(transform.position + (Vector3)totalForce);
             if (debug)
             {
@@ -572,7 +590,7 @@ namespace ParityAnalyser.Sim
         protected Vector2 RestForce()
         {
             Vector2 dir = (restPoint - (Vector2)transform.position).normalized;
-            float radius = 1f;
+            float radius = 1.5f;
             float scaleFactor = 1f, power = 1f;
             float magnitude = Mathf.Min(scaleFactor * Mathf.Max(0, Mathf.Pow(Vector2.Distance(restPoint, transform.position) - radius, power)), 4f);
             return dir * magnitude;

@@ -54,7 +54,7 @@ namespace ParityAnalyser.Sim
                 float to90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 90f));
                 float toNeg90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, -90f));
                 bool closerTo90 = to90 < toNeg90;
-                if (to90.NearlyEqual(toNeg90))
+                if (to90.NearlyEqualTo(toNeg90))
                 {
                     bool left = !slider.Any(note => note.PosX > pos.x);
                     return Order(left ? StackOrder.RightToLeft : StackOrder.LeftToRight);
@@ -72,10 +72,10 @@ namespace ParityAnalyser.Sim
 
                 float closer180 = Mathf.Min(Mathf.Abs(to180), Mathf.Abs(toNeg180));
                 bool closerTo180 = closer180 < to0;
-                if (closer180.NearlyEqual(to0))
+                if (closer180.NearlyEqualTo(to0))
                 {
                     bool bottom = slider.All(note => note.PosY <= pos.y);
-                    if (pos.y.NearlyEqual(1f))
+                    if (pos.y.NearlyEqualTo(1f))
                     {
                         // prioritize down swings
                         return Order(StackOrder.TopToBottom);
