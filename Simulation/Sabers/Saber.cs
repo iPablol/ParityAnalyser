@@ -264,7 +264,7 @@ namespace ParityAnalyser.Sim
             if (prevNote != null)
             {
                 bool shouldKeepAngle = prevNote.IsInlineWith(nextNote) || nextNote.IsInvert(prevNote, wristAngle + parityAngle) || nextNote.PosY == prevNote.PosY;
-                if (shouldKeepAngle && ParityAnalyser.options.debugDots && nextNote.IsDot())
+                if (shouldKeepAngle && ParityAnalyser.options.debugDotState && nextNote.IsDot())
                 {
                     ParityAnalyser.outline.AddToCache(nextNote, Color.cyan);
                 }
@@ -345,13 +345,12 @@ namespace ParityAnalyser.Sim
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
                 yield break;
             }
-            bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
+            //bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
             
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (shouldResetDueToAngle || shouldResetDueToRoll))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Mathf.Abs(wristAngle) <= 90f && isBottomRowReset && (roll >= 180f || group.endsInDot))
             {
-                Debug.Log($"Angle: {shouldResetDueToAngle} - wa: {wristAngle} - r: {roll} - c: {RollsComfortably(roll)}\n" +
-                    $"Roll: {shouldResetDueToRoll} - r: {roll}");
+                Debug.Log($"Angle: {wristAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
                 yield break;
             }
@@ -362,14 +361,14 @@ namespace ParityAnalyser.Sim
                 (note) => note.RightInnerLane() && note.TopRow(),
                 (note) => note.RightOuterLane() && note.TopRow(),
                 ];
-            //bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 90f && group.Satisfies(topRowReset) && (shouldResetDueToAngle || shouldResetDueToRoll))
+            bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Mathf.Abs(wristAngle) <= 90f && isTopRowReset && (roll >= 180f || group.endsInDot))
             {
                 yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
                 yield break;
             }
 
-            // Quick bomb reset
+            // Quick bomb reset (I don't know why I put this here, never encountered one)
             float quickBombThreshold = 1 / 4f;
             IEnumerable<BaseNote> inlineBombs = group.Where(bomb => bomb.PosX == group.startNote.PosX && bomb.PosY == group.startNote.PosY);
             if (inlineBombs.Count() > 0)

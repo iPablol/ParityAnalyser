@@ -177,7 +177,7 @@ namespace ParityAnalyser
                         
                     }
                 }
-                if (renderSabers)
+                if (renderSabers || (options.debugDotAngle && snap.note.IsDot()))
                 {
                     GameObject renderer = new GameObject("line renderer");
 

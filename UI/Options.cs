@@ -31,7 +31,8 @@ namespace ParityAnalyser
         public bool renderRightBombDodgePoints = false;
 
         public bool logResets = true;
-        public bool debugDots = false;
+        public bool debugDotState = false;
+        public bool debugDotAngle = false;
         public bool bombClusterMerging = true;
 
         [NonSerialized]private static readonly string savePath = Path.Combine(Application.persistentDataPath, "ParityAnalyser.json");
