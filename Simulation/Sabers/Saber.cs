@@ -257,7 +257,7 @@ namespace ParityAnalyser.Sim
             }
         }
 
-        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider)
+        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider, bool useSaberPos = false)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset when using max 315 roll)
             float desiredAngle = DesiredAngle((NoteDirection)nextNote.CutDirection);
@@ -268,13 +268,14 @@ namespace ParityAnalyser.Sim
                 {
                     ParityAnalyser.outline.AddToCache(nextNote, Color.cyan);
                 }
-                if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider)
+                if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider || useSaberPos)
                 {
                     // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
-                    Vector2 dir = (nextNote.Position() - prevNote.Position()).normalized;
-                    if (!parity.Bool()) dir = -dir;
+                    Vector2 prevPos = useSaberPos ? hilt : prevNote.Position();
+                    Vector2 dir = (nextNote.Position() - prevPos).normalized;
+                    dir *= -(int)parity;
                     float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
-                    desiredAngle = Mathf.DeltaAngle(0f, signedAngle);
+                    desiredAngle = signedAngle;
                     //Debug.Log($"Beat: {nextNote.JsonTime}, Angle: {desiredAngle}, Signed: {signedAngle}");
 
                 }
@@ -338,7 +339,7 @@ namespace ParityAnalyser.Sim
             Debug.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
 
             bool shouldResetDueToAngle = Mathf.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Mathf.Abs(roll) >= 135f || Mathf.Abs(wristAngle + roll) >= 180f);
-            if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Mathf.Abs(roll) > 30f)
+            if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Mathf.Abs(roll) > 30f && !group.endNote.IsDot())
             {
                 // MARENOL beat 58: left saber rolls clockwise, conflicts with B.B.K.K.B.K.K
                 yield return Reset(group.bombs[0], parity.Other(), "Wrist roll caused too much wrist angle (bombs)");
@@ -393,12 +394,20 @@ namespace ParityAnalyser.Sim
             if (transform.position.y > 1)
                 MoveTo(transform.position + transform.up);
 
-            bool hasRolledAway = false;
             bool isFirstCluster = true;
             foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
             {
                 DodgeBombs(group, cluster1, debug);
                 Start:
+                if (group.endsInDot)
+                {
+                    wristAngle = CutAngle(group.startNote, group.endNote, false, true);
+                    if (Mathf.Abs(wristAngle) > 135f)
+                    {
+                        yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (dot) " + $"{wristAngle}", wristAngle - 180f * Mathf.Sign(wristAngle));
+                        goto Start;
+                    }
+                }
                 float roll = WristRoll(group.startNote, group.nextObject);
                 float swingOffset = parityAngle;
                 float startAngle = wristAngle + swingOffset;
@@ -409,7 +418,7 @@ namespace ParityAnalyser.Sim
 
                 // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
                 float nextAngle = endAngle - swingOffset;
-                // Da mama 4-wide stacks roll to the other side
+                // I don't think this will trigger anymore
                 bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
                 //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
                 if (!group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
@@ -452,14 +461,6 @@ namespace ParityAnalyser.Sim
 
                         if (swingPathCollides)
                         {
-                            if (!hasRolledAway && group.endNote.IsDot() && Mathf.Abs(roll) < 30f)
-                            {
-                                // Roll to preferred direction or resting position?
-                                // TODO: angle selection logic (pink diamond beat 213)
-                                wristAngle += -Mathf.Sign(wristAngle) * 45f;
-                                hasRolledAway = true;
-                                goto Start;
-                            }
                             startTime = cluster1.time;
                             yield return Reset(cluster1.aBomb, parity.Other(), "Swing path", wristAngle);
                             break;
@@ -467,7 +468,6 @@ namespace ParityAnalyser.Sim
                     }
                 }
                 isFirstCluster = false;
-                // TODO: consider order of dodge and check collision (dodging first is more realistic in the sense that it causes less collision resets but it breaks the diagonal bottom row resets)
                 DodgeBombs(group, cluster1, debug);
             }
             
@@ -514,7 +514,10 @@ namespace ParityAnalyser.Sim
                 distanceToNote = Vector2.Distance(group.endNote.Position(), hiltPos),
                 distanceDamp = 4f / (group.endNote.JsonTime - group.startNote.JsonTime), // Move more for longer bomb groups and viceversa
                 noteForce = Mathf.Clamp(-Mathf.Log(timeDistanceToNote) * (distanceToNote / distanceDamp), 0, distanceToNote);
-            totalForce += dirToNote * noteForce;
+            if (!group.endsInDot && distanceToNote < 1f)
+            {
+                totalForce += dirToNote * noteForce;
+            }
 
             MoveTo(transform.position + (Vector3)totalForce);
             if (debug)

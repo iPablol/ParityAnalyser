@@ -72,7 +72,7 @@ namespace ParityAnalyser.Sim
         public SliderGroup OrderFullDotStack(ISimulationObject lastObject, Saber saber)
         {
             float wristAngle = saber.wristAngle;
-            Vector2 pos = lastObject is BombGroup group ? group.startNote.Position() : lastObject.LastNote().Position();
+            Vector2 pos = saber.hilt;
             if (isFullyHorizontal)
             {
                 BaseNote firstNote = (from note in slider
@@ -162,18 +162,18 @@ namespace ParityAnalyser.Sim
         {
             Parity.FOREHAND => angle switch
             {
-                >= -45f and <= 45f => StackOrder.TopToBottom,
-                -90f => StackOrder.RightToLeft,
-                90f => StackOrder.LeftToRight,
-                <= -135f or >= 135f => StackOrder.BottomToTop,
+                > -67.5f and < 67.5f => StackOrder.TopToBottom,
+                <= -67.5f and > -112.5f => StackOrder.RightToLeft,
+                >= 67.5f and < 112.5f => StackOrder.LeftToRight,
+                <= -112.5f or >= 112.5f => StackOrder.BottomToTop,
                 _ => StackOrder.TopToBottom
             },
             Parity.BACKHAND => angle switch
             {
-                >= -45f and <= 45f => StackOrder.BottomToTop,
-                -90f => StackOrder.LeftToRight,
-                90f => StackOrder.RightToLeft,
-                <= -135f or >= 135f => StackOrder.TopToBottom,
+                > -67.5f and < 67.5f => StackOrder.BottomToTop,
+                <= -67.5f and > -112.5f => StackOrder.LeftToRight,
+                >= 67.5f and < 112.5f => StackOrder.RightToLeft,
+                <= -112.5f or >= 112.5f => StackOrder.TopToBottom,
                 _ => StackOrder.TopToBottom
             }
         };

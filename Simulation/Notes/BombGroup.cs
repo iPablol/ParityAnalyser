@@ -22,6 +22,8 @@ namespace ParityAnalyser.Sim
                                    group bomb by bomb.Time() into g
                                    select g.Key).Count() <= 1;
 
+        public bool endsInDot => nextObject is not SliderGroup && endNote.IsDot();
+
         public IEnumerable<BaseNote> Notes() => prevObject.Notes().Concat(nextObject.Notes());
         public float minX => (from bomb in bombs.ConvertAll<BaseNote>(bomb => bomb.Value) orderby bomb.PosX ascending select bomb.PosX).First();
         public float maxX => (from bomb in bombs.ConvertAll<BaseNote>(bomb => bomb.Value) orderby bomb.PosX descending select bomb.PosX).First();
