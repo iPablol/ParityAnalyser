@@ -72,12 +72,9 @@ namespace ParityAnalyser.Sim
         public SliderGroup OrderFullDotStack(ISimulationObject lastObject, Saber saber)
         {
             float wristAngle = saber.wristAngle;
-            Vector2 pos = saber.hilt;
+            Vector2 pos = lastObject.FirstNote().Position();
             if (isFullyHorizontal)
             {
-                BaseNote firstNote = (from note in slider
-                                      orderby Math.Abs(note.PosX - pos.x) ascending
-                                      select note).First();
                 float to90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 90f));
                 float toNeg90 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, -90f));
                 bool closerTo90 = to90 < toNeg90;
@@ -90,9 +87,6 @@ namespace ParityAnalyser.Sim
             }
             else
             {
-                BaseNote firstNote = (from note in slider
-                                      orderby Math.Abs(note.PosY - pos.y) ascending
-                                      select note).First();
                 float to180 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 180f));
                 float to0 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, 0));
                 float toNeg180 = Mathf.Abs(Mathf.DeltaAngle(wristAngle, -180f));
@@ -109,21 +103,14 @@ namespace ParityAnalyser.Sim
                     }
                     return Order(bottom ? StackOrder.TopToBottom : StackOrder.BottomToTop);
                 }
-                if (closerTo180)
-                {
-                    SliderGroup topToBottom = Order(StackOrder.TopToBottom);
-                    SliderGroup bottomToTop = Order(StackOrder.BottomToTop);
+                SliderGroup topToBottom = Order(StackOrder.TopToBottom);
+                SliderGroup bottomToTop = Order(StackOrder.BottomToTop);
 
-                    float roll1 = Mathf.Abs(wristAngle - topToBottom.GetAngles(saber).First().Item1);
-                    float roll2 = Mathf.Abs(wristAngle - bottomToTop.GetAngles(saber).First().Item1);
+                float roll1 = Mathf.Abs(wristAngle - topToBottom.GetAngles(saber).First().Item1);
+                float roll2 = Mathf.Abs(wristAngle - bottomToTop.GetAngles(saber).First().Item1);
 
-                    return roll1 <= roll2 ? topToBottom : bottomToTop;
-                    //return Order(Mathf.Abs(wristAngle) >= 90f ? StackOrder.TopToBottom : StackOrder.BottomToTop);
-                }
-                else
-                {
-                    return Order(bottom ? StackOrder.TopToBottom : GetOrder(saber.parity, wristAngle));
-                }
+                return roll1 <= roll2 ? topToBottom : bottomToTop;
+                
             }
         }
 

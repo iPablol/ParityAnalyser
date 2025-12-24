@@ -399,7 +399,7 @@ namespace ParityAnalyser.Sim
             {
                 DodgeBombs(group, cluster1, debug);
                 Start:
-                if (group.endsInDot)
+                if (group.endsInDot && !group.singleBeat)
                 {
                     wristAngle = CutAngle(group.startNote, group.endNote, false, true);
                     if (Mathf.Abs(wristAngle) > 135f)
