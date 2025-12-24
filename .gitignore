@@ -3,3 +3,5 @@
 obj/
 bin/
 /bin
+*.csproj.user
+.editorconfig
