@@ -298,7 +298,7 @@ namespace ParityAnalyser.Sim
                 angle = CutAngle(prevNote, nextObject.FirstNote(), false);
             }
 
-            return Mathf.DeltaAngle(wristAngle, angle);
+            return angle - wristAngle;
         }
 
         private IEnumerable<SaberSnapshot> HandleBombGroup(BombGroup group)
@@ -614,7 +614,7 @@ namespace ParityAnalyser.Sim
         protected abstract float preferredRollDirection { get; }
 
         public bool RollsComfortably(float roll) => (wristAngle != 0f && preferredRollDirection == Mathf.Sign(roll))
-                                                || (wristAngle == 0f && roll == 0f);
+                                                || (wristAngle == 0f && roll == 0f) || Mathf.Sign(roll) != Mathf.Sign(wristAngle);
 
         public float wristAngle { get; protected set; }
 
