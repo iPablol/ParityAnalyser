@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../iPablol/ParityAnalyser/ParityAnalyser.csproj" />
+  <Project Path="ParityAnalyserCore/ParityAnalyserCore.csproj" />
+</Solution>
