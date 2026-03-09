@@ -1,6 +1,6 @@
 ﻿using Beatmap.Base;
 using Beatmap.Enums;
-using ParityAnalyser.Sim;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,8 +11,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEngine;
+
 using static Beatmap.V4.V4CommonData;
-using Parity = ParityAnalyser.Parity;
 
 using Random = UnityEngine.Random;
 
@@ -112,7 +112,9 @@ namespace ParityAnalyser
 	//}
 	internal static class Utils
     {
-        public static Vector2 gridCenter = new Vector2(1.5f, 1f);
+        public static ParityAnalyserCore.Sim.BaseNote ToInternal(this BaseNote note) => new(note.JsonTime, note.Type, note.CutDirection, note.PosX, note.PosY);
+
+		public static Vector2 gridCenter = new Vector2(1.5f, 1f);
         public static Color RandomColor()
         {
             return new Color(
@@ -122,146 +124,15 @@ namespace ParityAnalyser
             );
         }
 
-        public static float ClosestToZero(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
-        public static bool IsStackOrSlider(BaseNote note1, BaseNote note2) => Math.Abs(note2.JsonTime -  note1.JsonTime) <= Simulation.sliderThreshold;
-        public static bool Bool(this Parity parity) => parity == Parity.FOREHAND;
-        public static Parity ToParity(this bool b) => b ? Parity.FOREHAND : Parity.BACKHAND;
-        public static Parity Other(this Parity parity) => (!parity.Bool()).ToParity();
+        public static UnityEngine.Vector3 ToUnity(this System.Numerics.Vector3 vec) => new(vec.X, vec.Y, vec.Z);
 
-        // TODO: clear all renders button
-        public static void RenderLine(Vector3 pos1, Vector3 pos2, Color colorStart, Color colorEnd, float width = 0.05f, BaseNote sync = null)
-        {
-            GameObject renderer = new GameObject("line");
-            LineRenderer lr = renderer.AddComponent<LineRenderer>();
-            lr.positionCount = 2;
+        public static UnityEngine.Quaternion ToUnity(this System.Numerics.Quaternion q) => new (q.X, q.Y, q.Z, q.W);
 
-            Gradient g = new Gradient();
-            g.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(colorStart, 0f),
-                    new GradientColorKey(colorEnd, 1f)
-                },
-                new[]
-                {
-                    new GradientAlphaKey(1f, 1f),
-                    new GradientAlphaKey(1f, 1f)
-                }
-            );
+        public static Vector3 ToUnityVec3(this System.Numerics.Vector2 vec) => new(vec.X, vec.Y, 0);
 
-            lr.colorGradient = g;
-            lr.startWidth = lr.endWidth = width;
-            lr.material = new Material(Shader.Find("Sprites/Default"));
-
-            var atc = ParityAnalyser.atc;
-            lr.SetPositions([pos1 + sync.Offset(), pos2 + sync.Offset()]);
-            Action update = () =>
-            {
-                float time = atc.CurrentJsonTime;
-                lr.SetPositions([pos1 + sync.Offset(), pos2 + sync.Offset()]);
-
-            };
-            ParityAnalyser.AddRender(renderer, update);
-        }
-
-        public static void RenderSphere(Vector3 pos, float radius, Color color, BaseNote sync = null)
-        {
-            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-
-            sphere.transform.localScale = Vector3.one * radius * 2f;
-
-            var renderer = sphere.GetComponent<MeshRenderer>();
-            renderer.material = new Material(Shader.Find("Unlit/Color"));
-            renderer.material.color = color;
-
-            var atc = ParityAnalyser.atc;
-            sphere.transform.position = pos + (sync?.Offset() ?? default);
-            Action update = () =>
-            {
-                float time = atc.CurrentJsonTime;
-                sphere.transform.position = pos + (sync?.Offset() ?? default);
-            };
-            ParityAnalyser.AddRender(sphere, update);
-
-        }
-
-        public static void RenderRect(OrientedRect r, Color color, float width = 0.05f, BaseNote sync = null)
-        {
-            GameObject renderer = new GameObject("rect");
-            LineRenderer lr = renderer.AddComponent<LineRenderer>();
-            lr.positionCount = 5;
-
-            Gradient g = new Gradient();
-            g.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(color, 0f),
-                    new GradientColorKey(color, 1f)
-                },
-                new[]
-                {
-                    new GradientAlphaKey(1f, 1f),
-                    new GradientAlphaKey(1f, 1f)
-                }
-            );
-
-            lr.colorGradient = g;
-            lr.startWidth = lr.endWidth = width;
-            lr.material = new Material(Shader.Find("Sprites/Default"));
-
-            var atc = ParityAnalyser.atc;
-            lr.SetPositions([(Vector3)r.tl + sync.Offset(), (Vector3)r.tr + sync.Offset(), (Vector3)r.br + sync.Offset(), (Vector3)r.bl + sync.Offset(), (Vector3)r.tl + sync.Offset()]);
-            Action update = () =>
-            {
-                float time = atc.CurrentJsonTime;
-                lr.SetPositions([(Vector3)r.tl + sync.Offset(), (Vector3)r.tr + sync.Offset(), (Vector3)r.br + sync.Offset(), (Vector3)r.bl + sync.Offset(), (Vector3)r.tl + sync.Offset()]);
-
-            };
-            ParityAnalyser.AddRender(renderer, update);
-        }
-
-        public static float Cross(this Vector2 a, Vector2 b) => (a.x * b.y) - (a.y * b.x);
-
-        
 
         public static Vector3 Offset(this float time) => new Vector3(-1.5f, 0.5f, 0f);
 
-
-        public static Vector2 DirectionFromDownAngle(float angleDeg)
-        {
-            float rad = (angleDeg - 90f) * Mathf.Deg2Rad;
-            return new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
-        }
-
-        public static float DownAngleBetween(Vector2 a, Vector2 b)
-        {
-            float a1 = AngleFromDown(a);
-            float a2 = AngleFromDown(b);
-            return Mathf.DeltaAngle(a1, a2);
-        }
-
-        public static float AngleFromDown(Vector2 v)
-        {
-            float angle = Mathf.Atan2(v.y, v.x) * Mathf.Rad2Deg;
-            angle = 90f - angle;
-            if (angle < 0) angle += 360f;
-            return angle;
-        }
-
-        public static float DownAngleFromDir(Vector2 dir)
-        {
-            dir.Normalize();
-
-            // Standard atan2 gives angle with 0 at right
-            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-
-            // Rotate reference so 0 is down
-            angle = 90f - angle;
-
-
-
-            return angle;
-        }
 
         public static string CamelCaseToWords(this string input)
         {
@@ -277,19 +148,6 @@ namespace ParityAnalyser
 
             // Capitalize first letter
             return char.ToUpper(result[0]) + result.Substring(1);
-        }
-
-        public static float SignedDistanceToPlane(this Vector2 p, Vector2 planePoint, Vector2 normalDirection)
-        {
-            
-            Vector2 n = normalDirection.normalized;
-
-            return Vector2.Dot(p - planePoint, n);
-        }
-
-        public static bool NearlyEqualTo(this float a, float b, float tolerance = 0.1f)
-        {
-            return Mathf.Abs(a - b) <= tolerance;
         }
 
     }

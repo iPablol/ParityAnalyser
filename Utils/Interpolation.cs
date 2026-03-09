@@ -1,11 +1,11 @@
-﻿using ParityAnalyser.Sim;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-
+using ParityAnalyserCore.Sim;
 namespace ParityAnalyser
 {
     internal class Interpolation
@@ -17,10 +17,10 @@ namespace ParityAnalyser
 
             // Clamp outside range
             if (t <= points[0].beat)
-                return points[0].position;
+                return points[0].position.ToUnity();
 
             if (t >= points[points.Count - 1].beat)
-                return points[points.Count - 1].position;
+                return points[points.Count - 1].position.ToUnity();
 
             // Binary search for efficiency
             int lo = 0;
@@ -41,7 +41,7 @@ namespace ParityAnalyser
             SaberSnapshot b = points[lo];
 
             float u = Mathf.InverseLerp(a.beat, b.beat, t);
-            return Sperp(a.position, b.position, u);
+            return Sperp(a.position.ToUnity(), b.position.ToUnity(), u);
         }
 
         public static float SampleWristAngleAtTime(IReadOnlyList<SaberSnapshot> points, float t)
@@ -85,10 +85,10 @@ namespace ParityAnalyser
 
             // Clamp outside range
             if (t <= points[0].beat)
-                return points[0].rotation;
+                return points[0].rotation.ToUnity();
 
             if (t >= points[points.Count - 1].beat)
-                return points[points.Count - 1].rotation;
+                return points[points.Count - 1].rotation.ToUnity();
 
             // Binary search for efficiency
             int lo = 0;
@@ -109,7 +109,7 @@ namespace ParityAnalyser
             SaberSnapshot b = points[lo];
 
             float u = Mathf.InverseLerp(a.beat, b.beat, t);
-            return AngleSpikeSlerp(a.rotation, b.rotation, u);
+            return AngleSpikeSlerp(a.rotation.ToUnity(), b.rotation.ToUnity(), u);
         }
 
         public static Vector3 Sperp(Vector3 a, Vector3 b, float t, float sharpness = 2.5f)

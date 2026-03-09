@@ -20,11 +20,11 @@ namespace ParityAnalyser
 	}
 	internal class Outline
 	{
-		private ParityAnalyser plugin;
+		private Plugin plugin;
 
 		public HashSet<SpawnedNote> outlineCache = new HashSet<SpawnedNote>();
 
-		public Outline(ParityAnalyser plugin)
+		public Outline(Plugin plugin)
 		{
 			this.plugin = plugin;
 			plugin.noteGrid.ContainerSpawnedEvent += SetOutline;

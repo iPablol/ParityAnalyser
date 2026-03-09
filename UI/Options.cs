@@ -13,27 +13,27 @@ namespace ParityAnalyser
     [Serializable]
     internal class Options
     {
-        public bool renderLeftParitySabers = true;
-        public bool renderRightParitySabers = true;
+        public bool renderLeftParitySabers      = true;
+        public bool renderRightParitySabers     = true;
         
-        public bool renderLeftParityOutlines = true;
-        public bool renderRightParityOutlines = true;
+        public bool renderLeftParityOutlines    = true;
+        public bool renderRightParityOutlines   = true;
         
-        public bool animateLeftParities = true;
-        public bool animateRightParities = true;
+        public bool animateLeftParities         = true;
+        public bool animateRightParities        = true;
 
-        public bool renderLeftBombGroups = false;
-        public bool renderRightBombGroups = false;
+        public bool renderLeftBombGroups        = false;
+        public bool renderRightBombGroups       = false;
 
-        public bool debugLeftBombCollisions = false;
-        public bool renderLeftBombDodgePoints = false;
-        public bool debugRightBombCollisions = false;
-        public bool renderRightBombDodgePoints = false;
+        public bool debugLeftBombCollisions     = false;
+        public bool renderLeftBombDodgePoints   = false;
+        public bool debugRightBombCollisions    = false;
+        public bool renderRightBombDodgePoints  = false;
 
-        public bool logResets = true;
-        public bool debugDotState = false;
-        public bool debugDotAngle = false;
-        public bool bombClusterMerging = true;
+        public bool logResets                   = true;
+        public bool debugDotState               = false;
+        public bool debugDotAngle               = false;
+        public bool bombClusterMerging          = true;
 
         [NonSerialized]private static readonly string savePath = Path.Combine(Application.persistentDataPath, "ParityAnalyser.json");
 

@@ -16,10 +16,10 @@ namespace ParityAnalyser
     public class UI
     {
         private GameObject _menu;
-        private readonly ParityAnalyser _plugin;
+        private readonly Plugin _plugin;
         private readonly ExtensionButton _extensionBtn = new ExtensionButton();
 
-        public UI(ParityAnalyser plugin)
+        public UI(Plugin plugin)
         {
             this._plugin = plugin;
 
@@ -51,7 +51,7 @@ namespace ParityAnalyser
             image.color = new Color(0.24f, 0.24f, 0.24f);
 
             AddButton(_menu.transform, "Analyse", "Analyse", new Vector2(140, -40), _plugin.Analyse);
-            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(140, -80), ParityAnalyser.ClearRenders);
+            AddButton(_menu.transform, "Clear Renders", "Clear Renders", new Vector2(140, -80), Plugin.ClearRenders);
             float[] yPos = new float[3] { -25, -25, -25 };
             foreach (FieldInfo option in typeof(Options).GetFields().Where(f => f.FieldType == typeof(bool)))
             {
@@ -61,11 +61,11 @@ namespace ParityAnalyser
                 int column = isLeft ? 0 : isRight ? 1 : 2;
 
                 float xPos = isLeft ? -80 : (isRight ? 0 : 80);
-                AddCheckbox(_menu.transform, option.Name.CamelCaseToWords(), option.Name.CamelCaseToWords(), new Vector2(xPos, yPos[column]), (bool)option.GetValue(ParityAnalyser.options), 
+                AddCheckbox(_menu.transform, option.Name.CamelCaseToWords(), option.Name.CamelCaseToWords(), new Vector2(xPos, yPos[column]), (bool)option.GetValue(Plugin.options), 
                     (check) =>
                     {
-                        option.SetValue(ParityAnalyser.options, check);
-                        ParityAnalyser.options.Save();
+                        option.SetValue(Plugin.options, check);
+                        Plugin.options.Save();
                     });
                 yPos[column] -= 40;
             }
