@@ -14,10 +14,10 @@ namespace ParityAnalyserProgram
 			{
 				Simulation sim = new ([.. GetMapNotes(path)]);
 				sim.Run();
-				foreach (var snap in sim.blueParities)
-				{
-					Console.WriteLine(snap);
-				}
+				//foreach (var snap in sim.blueParities)
+				//{
+				//	Console.WriteLine(snap);
+				//}
 			}
 			else
 			{

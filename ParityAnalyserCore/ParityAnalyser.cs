@@ -29,6 +29,8 @@ namespace ParityAnalyserCore
 			public bool logResets = true;
 			public bool debugDotState = false;
 			public bool bombClusterMerging = true;
+
+			public static Options Default = new();
 		}
     }
 

@@ -6,3 +6,4 @@ bin/
 *.csproj.user
 .editorconfig
 ParityAnalyserCore/ParityAnalyserCore/Properties/launchSettings.json
+ParityAnalyserProgram/Properties/launchSettings.json

@@ -20,7 +20,7 @@ namespace ParityAnalyserCore.Sim
 
         public Simulation(List<BaseNote> notes, ParityAnalyser.Options? options = null, IDebugRenderer? debugRenderer = null, Action<string>? debugCallback = null)
         {
-            ParityAnalyser.options = options ?? default;
+            ParityAnalyser.options = options ?? ParityAnalyser.Options.Default;
             DebugRenderer.renderer = debugRenderer;
             ParityAnalyser.debugCallback = debugCallback ?? Console.WriteLine;
             // TODO: Check starting parity
