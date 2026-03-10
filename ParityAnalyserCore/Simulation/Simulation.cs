@@ -18,10 +18,11 @@ namespace ParityAnalyserCore.Sim
         public static readonly float minSaberY = -0.2f;
         public static readonly float maxSaberY = 2.2f;
 
-        public Simulation(List<BaseNote> notes, ParityAnalyser.Options? options = null, IDebugRenderer? debugRenderer = null)
+        public Simulation(List<BaseNote> notes, ParityAnalyser.Options? options = null, IDebugRenderer? debugRenderer = null, Action<string>? debugCallback = null)
         {
             ParityAnalyser.options = options ?? default;
             DebugRenderer.renderer = debugRenderer;
+            ParityAnalyser.debugCallback = debugCallback ?? Console.WriteLine;
             // TODO: Check starting parity
             if (notes.Any(note => note.type == NoteType.Red))
             {
@@ -43,13 +44,14 @@ namespace ParityAnalyserCore.Sim
 
         public void Run()
         {
-            Console.WriteLine($"Bomb cluster merging is: {(ParityAnalyser.options.bombClusterMerging ? "ON" : "OFF")}");
-            Console.WriteLine("-------------- Left Saber --------------");
+            ParityAnalyser.Log($"Bomb cluster merging is: {(ParityAnalyser.options.bombClusterMerging ? "ON" : "OFF")}");
+            ParityAnalyser.Log("-------------- Left Saber --------------");
             if (leftSaber != null)
             {
-                
+				if (ParityAnalyser.options.renderLeftBombGroups)
+					leftSaber.RenderBombGroups(true, true);
 
-                foreach (SaberSnapshot s in this.leftSaber.FirstSwing())
+				foreach (SaberSnapshot s in this.leftSaber.FirstSwing())
                 {
                     redParities.Add(s);
                 }
@@ -64,12 +66,13 @@ namespace ParityAnalyserCore.Sim
                 }
 
             }
-            Console.WriteLine("----------------------------------------\n");
-			Console.WriteLine("-------------- Right Saber --------------");
+            ParityAnalyser.Log("----------------------------------------\n");
+			ParityAnalyser.Log("-------------- Right Saber --------------");
             if (rightSaber != null)
             {
-
-                foreach (SaberSnapshot s in this.rightSaber.FirstSwing())
+				if (ParityAnalyser.options.renderRightBombGroups)
+					rightSaber.RenderBombGroups(true, true);
+				foreach (SaberSnapshot s in this.rightSaber.FirstSwing())
                 {
                     blueParities.Add(s);
                 }
@@ -89,7 +92,7 @@ namespace ParityAnalyserCore.Sim
                 //}
 
             }
-			Console.WriteLine("-----------------------------------------\n");
+			ParityAnalyser.Log("-----------------------------------------\n");
         }
 
         private RightSaber rightSaber = null;
@@ -101,7 +104,6 @@ namespace ParityAnalyserCore.Sim
         
     }
 
-    // The rotation can be inferred from wristAngle and parity?
     public record struct SaberSnapshot(BaseNote note, Vector3 position, Parity parity, float wristAngle, bool reset = false)
     {
 

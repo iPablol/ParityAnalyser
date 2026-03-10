@@ -119,9 +119,9 @@ namespace ParityAnalyserCore
 
 				//Utils.RenderLine((Vector3)bombPosition, (Vector3)bombPosition + zVec + Vector3.up * Simulation.bombRadius, Color.black, Color.black, 0.3f, bombForDebug);
 				//Utils.RenderSphere((Vector3)bombPosition, Simulation.bombRadius, Color.cyan, bombForDebug);
-				//Console.WriteLine("");
-				//Console.WriteLine(startAngle); Console.WriteLine(endAngle);
-				//Console.WriteLine("");
+				//ParityAnalyser.Log("");
+				//ParityAnalyser.Log(startAngle); ParityAnalyser.Log(endAngle);
+				//ParityAnalyser.Log("");
 			}
 			// Circles are too far apart
 			if (Vector2.Distance(position, bombPosition) > Saber.length + Simulation.bombRadius) return false;
@@ -133,11 +133,11 @@ namespace ParityAnalyserCore
             {
                 if (debug)
                 {
-                    Console.WriteLine("Boundary intersection");
-                    //Console.WriteLine($"Position: {position}");
-                    //Console.WriteLine($"Boundary A: {boundaryA} ({boundaryAIntersects}), Boundary B: {boundaryB} ({boundaryBIntersects})");
-                    //Console.WriteLine($"Bomb position: {bombPosition}");
-                    //Console.WriteLine("");
+                    ParityAnalyser.Log("Boundary intersection");
+                    //ParityAnalyser.Log($"Position: {position}");
+                    //ParityAnalyser.Log($"Boundary A: {boundaryA} ({boundaryAIntersects}), Boundary B: {boundaryB} ({boundaryBIntersects})");
+                    //ParityAnalyser.Log($"Bomb position: {bombPosition}");
+                    //ParityAnalyser.Log("");
                 }
                 return true;
             }
@@ -153,9 +153,9 @@ namespace ParityAnalyserCore
                 {
                     if (debug)
                     {
-                        Console.WriteLine($"P1 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
-                        //Console.WriteLine($"A: {boundaryA}, B: {boundaryB}, P1: {p1}");
-                        Console.WriteLine("P1");
+                        ParityAnalyser.Log($"P1 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
+                        //ParityAnalyser.Log($"A: {boundaryA}, B: {boundaryB}, P1: {p1}");
+                        ParityAnalyser.Log("P1");
 						DebugRenderer.RenderLine(position.ToVector3(), p1.ToVector3(), Color.green, Color.green, sync: bombForDebug);
 						DebugRenderer.RenderLine(position.ToVector3(), p2.ToVector3(), Color.green, Color.green, sync: bombForDebug);
 					}
@@ -168,9 +168,9 @@ namespace ParityAnalyserCore
                 {
                     if (debug)
                     {
-                        Console.WriteLine($"P2 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
-                        //Console.WriteLine($"A: {boundaryA}, B: {boundaryB}, P2{p2}");
-                        Console.WriteLine("P2");
+                        ParityAnalyser.Log($"P2 Alpha: {alpha}, beta: {beta}, gamma: {gamma}");
+                        //ParityAnalyser.Log($"A: {boundaryA}, B: {boundaryB}, P2{p2}");
+                        ParityAnalyser.Log("P2");
 						DebugRenderer.RenderLine(position.ToVector3(), p1.ToVector3(), Color.green, Color.green, sync: bombForDebug);
 						DebugRenderer.RenderLine(position.ToVector3(), p2.ToVector3(), Color.green, Color.green, sync: bombForDebug);
 					}
@@ -204,7 +204,7 @@ namespace ParityAnalyserCore
             {
                 if (debug)
                 {
-                    Console.WriteLine("Boundary intersection");
+                    ParityAnalyser.Log("Boundary intersection");
                 }
                 return true;
             }
@@ -243,7 +243,7 @@ namespace ParityAnalyserCore
                     if (debug)
                     {
 						DebugRenderer.RenderLine(position.ToVector3(), point.ToVector3(), Color.green, Color.green, sync: bombForDebug);
-						Console.WriteLine($"alpha: {alpha}, beta: {beta}, dirAngle: {dirAngle}, delta: {delta}");
+						ParityAnalyser.Log($"alpha: {alpha}, beta: {beta}, dirAngle: {dirAngle}, delta: {delta}");
                     }
                     return true;
                 }

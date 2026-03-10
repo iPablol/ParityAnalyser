@@ -179,7 +179,8 @@ namespace ParityAnalyserCore.Sim
         public virtual SaberSnapshot Reset(BaseNote culprit, Parity parity, string reason, float wristAngle = 0f) 
         {
             //ParityAnalyser.outline.AddToCache(culprit, Color.yellow);
-            Console.WriteLine($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
+            if (ParityAnalyser.options.logResets)
+                ParityAnalyser.Log($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
             hasReset = true;
             this.parity = parity;
             this.transform.rotation = Quaternion.Identity;
@@ -238,7 +239,11 @@ namespace ParityAnalyserCore.Sim
             if (prevNote != null)
             {
                 bool shouldKeepAngle = prevNote.IsInlineWith(nextNote) || nextNote.IsInvert(prevNote, wristAngle + parityAngle) || nextNote.PosY == prevNote.PosY;
-                if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider || useSaberPos)
+				if (shouldKeepAngle && ParityAnalyser.options.debugDotState && nextNote.IsDot())
+				{
+					DebugRenderer.AddOutline(nextNote, Color.cyan);
+				}
+				if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider || useSaberPos)
                 {
                     // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
                     Vector2 prevPos = useSaberPos ? hilt.ToVector2() : prevNote.Position();
@@ -306,7 +311,7 @@ namespace ParityAnalyserCore.Sim
                 ];
             bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
             
-            Console.WriteLine($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
+            ParityAnalyser.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
 
             bool shouldResetDueToAngle = Math.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Math.Abs(roll) >= 135f || Math.Abs(wristAngle + roll) >= 180f);
             if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Math.Abs(roll) > 30f && !group.endNote.IsDot())
@@ -320,7 +325,7 @@ namespace ParityAnalyserCore.Sim
             
             if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Math.Abs(wristAngle) <= 90f && isBottomRowReset && (roll >= 180f || group.endsInDot))
             {
-                Console.WriteLine($"Angle: {wristAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
+                ParityAnalyser.Log($"Angle: {wristAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
                 yield break;
             }

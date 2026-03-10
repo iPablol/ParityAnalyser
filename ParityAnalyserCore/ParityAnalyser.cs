@@ -10,19 +10,13 @@ namespace ParityAnalyserCore
 {
     public class ParityAnalyser
     {
+		public static Action<string>? debugCallback;
+		public static Options options = new();
 
-        public static Options options = new();
+		public static void Log(string message) => debugCallback?.Invoke(message);
 
         public record struct Options()
         {
-			public bool renderLeftParitySabers = true;
-			public bool renderRightParitySabers = true;
-
-			public bool renderLeftParityOutlines = true;
-			public bool renderRightParityOutlines = true;
-
-			public bool animateLeftParities = true;
-			public bool animateRightParities = true;
 
 			public bool renderLeftBombGroups = false;
 			public bool renderRightBombGroups = false;
@@ -34,7 +28,6 @@ namespace ParityAnalyserCore
 
 			public bool logResets = true;
 			public bool debugDotState = false;
-			public bool debugDotAngle = false;
 			public bool bombClusterMerging = true;
 		}
     }

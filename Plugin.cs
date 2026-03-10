@@ -98,14 +98,6 @@ namespace ParityAnalyser
             ClearRenders();
             Simulation sim = new Simulation(noteGrid.MapObjects.Where(x => x is Beatmap.Base.BaseNote).ToList().ConvertAll(note => note.ToInternal()), new()
             {
-				renderLeftParitySabers    =   options.renderLeftParitySabers,
-		        renderRightParitySabers   =   options.renderRightParitySabers,
-
-		        renderLeftParityOutlines  =   options.renderLeftParityOutlines,
-		        renderRightParityOutlines =   options.renderRightParityOutlines,
-
-		        animateLeftParities       =   options.animateLeftParities,
-		        animateRightParities      =   options.animateRightParities,
 
 		        renderLeftBombGroups      =   options.renderLeftBombGroups,
 		        renderRightBombGroups     =   options.renderRightBombGroups,
@@ -119,11 +111,10 @@ namespace ParityAnalyser
 		        logResets                 =   options.logResets,
 
 		        debugDotState             =   options.debugDotState,
-		        debugDotAngle             =   options.debugDotAngle,
 
 		        bombClusterMerging        =   options.bombClusterMerging,
 
-			}, new Renderer(this));
+			}, new Renderer(this), Debug.Log);
             sim.Run();
 
             RenderParities(sim.redParities, Color.red, options.renderLeftParityOutlines, options.renderLeftParitySabers);
