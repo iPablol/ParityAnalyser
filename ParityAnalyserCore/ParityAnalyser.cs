@@ -14,6 +14,7 @@ namespace ParityAnalyserCore
 		public static Options options = new();
 
 		public static void Log(string message) => debugCallback?.Invoke(message);
+		public static void Log(object message) => debugCallback?.Invoke(message.ToString());
 
         public record struct Options()
         {

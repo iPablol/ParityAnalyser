@@ -14,7 +14,7 @@ using Object = UnityEngine.Object;
 using ParityAnalyserCore.Sim;
 using Beatmap.Containers;
 using Beatmap.Animations;
-using ParityAnalyserCore.Sim;
+using HarmonyLib;
 using BaseNote = ParityAnalyserCore.Sim.BaseNote;
 using NoteType = ParityAnalyserCore.Sim.NoteType;
 using ParityAnalyserCore;
@@ -42,13 +42,27 @@ namespace ParityAnalyser
 
         internal static Options options = new();
 
+        internal static readonly string HarmonyId = "ipablol.ParityAnalyser";
+        internal static Plugin instance { get; private set;  }
+
         [Init]
         private void Init()
         {
+            instance = this;
             SceneManager.sceneLoaded += SceneLoaded;
             _ui = new UI(this);
             options = Options.Load();
+            Patch();
         }
+
+        private void Patch()
+        {
+            Harmony harmony = new (HarmonyId);
+
+            harmony.PatchAll();
+        }
+
+        
 
         
         private void SceneLoaded(Scene arg0, LoadSceneMode arg1)
@@ -132,16 +146,14 @@ namespace ParityAnalyser
 
             Gradient g = new Gradient();
             g.SetKeys(
-                new[] 
-                {
+                [
                     new GradientColorKey(Color.black, 0f),
                     new GradientColorKey(handColor, 1f)
-                },
-                new[] 
-                {
+                ],
+                [
                     new GradientAlphaKey(1f, 1f),
                     new GradientAlphaKey(1f, 1f)
-                }
+                ]
             );
 
             lr.colorGradient = g;
@@ -163,16 +175,14 @@ namespace ParityAnalyser
             LineRenderer alr = angleRenderer.AddComponent<LineRenderer>();
             Gradient ag = new Gradient();
             ag.SetKeys(
-                new[]
-                {
+                [
                     new GradientColorKey(Color.black, 0f),
                     new GradientColorKey(Color.white, 1f)
-                },
-                new[]
-                {
+                ],
+                [
                     new GradientAlphaKey(1f, 1f),
                     new GradientAlphaKey(1f, 1f)
-                }
+                ]
             );
 
             alr.colorGradient = ag;
@@ -185,7 +195,7 @@ namespace ParityAnalyser
                 Vector3 position = Interpolation.SamplePositionAtTime(parities, time);
                 DrawAngleIndicator(alr, position + time.Offset(), 0.2f, Interpolation.SampleWristAngleAtTime(parities, time));
             };
-            Plugin.AddRender(angleRenderer, update);
+            AddRender(angleRenderer, update);
         }
 
         internal void RenderParities(List<SaberSnapshot> parities, Color handColor, bool renderOutlines = true, bool renderSabers = true)
@@ -214,22 +224,22 @@ namespace ParityAnalyser
                     lr.SetPositions([snap.hilt.ToUnity() + chromapperNote.Offset(), snap.tip.ToUnity() + chromapperNote.Offset()]);
                     Gradient g = new Gradient();
                     g.SetKeys(
-                        new[] {
-                        new GradientColorKey(Color.black, 0f),
-                        new GradientColorKey(handColor, 1f)
-                                        },
-                                        new[] {
-                        new GradientAlphaKey(1f, 1f),
-                        new GradientAlphaKey(1f, 1f)
-                                        }
-                                    );
+                        [
+                            new GradientColorKey(Color.black, 0f),
+                            new GradientColorKey(handColor, 1f)
+                        ],
+                        [
+                            new GradientAlphaKey(1f, 1f),
+                            new GradientAlphaKey(1f, 1f)
+                        ]
+                    );
 
                     lr.colorGradient = g;
                     lr.startWidth = lr.endWidth = 0.05f;
                     lr.material = new Material(Shader.Find("Sprites/Default"));
                     lr.material.color = handColor;
                     Action update = () => lr.SetPositions([snap.hilt.ToUnity() + chromapperNote.Offset(), snap.tip.ToUnity() + chromapperNote.Offset()]);
-                    Plugin.AddRender(renderer, update);
+                    AddRender(renderer, update);
                 }
             }
             outline.RefreshOutlines();

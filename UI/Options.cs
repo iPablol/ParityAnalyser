@@ -13,8 +13,8 @@ namespace ParityAnalyser
     [Serializable]
     internal class Options
     {
-        public bool renderLeftParitySabers      = true;
-        public bool renderRightParitySabers     = true;
+        public bool renderLeftParitySabers      = false;
+        public bool renderRightParitySabers     = false;
         
         public bool renderLeftParityOutlines    = true;
         public bool renderRightParityOutlines   = true;
@@ -29,6 +29,8 @@ namespace ParityAnalyser
         public bool renderLeftBombDodgePoints   = false;
         public bool debugRightBombCollisions    = false;
         public bool renderRightBombDodgePoints  = false;
+
+        public bool autoAnalyseOnSave           = false;
 
         public bool logResets                   = true;
         public bool debugDotState               = false;

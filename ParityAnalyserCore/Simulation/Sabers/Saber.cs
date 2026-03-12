@@ -11,12 +11,11 @@ namespace ParityAnalyserCore.Sim
     public abstract class Saber
     {
 
-        public SaberSnapshot TakeSnapshot(BaseNote note) => new(note, transform.position, parity, wristAngle, hasReset);
+        public SaberSnapshot TakeSnapshot(BaseNote note) => new(note, position, parity, wristAngle, hasReset);
         public List<ISimulationObject> notes { get; private set; } = [];
         public List<BombGroup> bombGroups { get; private set; } = [];
         public Saber(List<BaseNote> relevantNotes, Parity start = Parity.FOREHAND)
         {
-            transform.rotation = Quaternion.Identity;
             parity = start;
             
 
@@ -90,32 +89,12 @@ namespace ParityAnalyserCore.Sim
             this.notes = this.notes.Where(o => !merged.Contains(o)).ToList();
 
             this.bombGroups = this.notes.Where(o => o is BombGroup).Cast<BombGroup>().ToList();
-            bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
-                        (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
-            if (debug)
-            {
-                foreach (var group in this.bombGroups)
-                {
-                    //Debug.Log("");
-                    //Debug.Log("Group " + group.Time());
-                    //List<BombCluster> clusters = group.GetClusters().ToList();
-                    //foreach (var cluster in clusters)
-                    //{
-                    //    Debug.Log(cluster.GetHitbox().Count());
-                    //    cluster.Render();
-                    //}
-                    //Debug.Log("");
-                }
-            }
 
             this.wristAngle = 0;
         }
-        protected Transform transform = new();
-        public struct Transform 
-        { 
-            public Vector3 position; public Quaternion rotation; public Quaternion localRotation;
-            public Vector3 up => Vector3.Transform(Vector3.up, rotation);
-        }
+        public Vector3 position { get; protected set; }
+        public Vector2 up => -Utils.DirectionFromDownAngle(wristAngle + parityAngle);
+
         public Parity parity 
         {  
             get; 
@@ -183,16 +162,14 @@ namespace ParityAnalyserCore.Sim
                 ParityAnalyser.Log($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
             hasReset = true;
             this.parity = parity;
-            this.transform.rotation = Quaternion.Identity;
-            transform.localRotation *= Quaternion.CreateFromAxisAngle(Vector3.right, parity.Bool() ? 0f : 180f);
             this.wristAngle = wristAngle;
 
             return TakeSnapshot(culprit);
         }
 
-        protected void MoveTo(Vector2 pos) { transform.position = new Vector3(Math.Clamp(pos.X, Simulation.minSaberX, Simulation.maxSaberX), 
+        protected void MoveTo(Vector2 pos) { position = new Vector3(Math.Clamp(pos.X, Simulation.minSaberX, Simulation.maxSaberX), 
                                                                         Math.Clamp(pos.Y, Simulation.minSaberY, Simulation.maxSaberY), 
-                                                                        transform.position.Z); }
+                                                                        position.Z); }
         protected void MoveTo(Vector3 pos) => MoveTo(new Vector2(pos.X, pos.Y));
 
         protected virtual void RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
@@ -219,8 +196,6 @@ namespace ParityAnalyserCore.Sim
             //    return;
             //}
             this.wristAngle = angle;
-            transform.rotation = Quaternion.CreateFromAxisAngle(Vector3.forward, wristAngle);
-            transform.localRotation *= Quaternion.CreateFromAxisAngle(Vector3.right, parity.Bool() ? -180f : 0f);
             
             if (nextNote.cutDirection != NoteCutDirection.Any)
             {
@@ -360,13 +335,17 @@ namespace ParityAnalyserCore.Sim
 
         }
 
-        protected virtual IEnumerable<SaberSnapshot> ExploreBombGroup(BombGroup group, float startTime, float endTime)
+        protected virtual IEnumerable<SaberSnapshot> ExploreBombGroup(BombGroup group, float currentTime, float endTime)
         {
+            float startTime = group.bombs.First().FirstNote().JsonTime;
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
             // Simulate hit momentum if above middle row (bottom row hits are more controlled)
-            if (transform.position.Y > 1)
-                MoveTo(transform.position + transform.up);
+            if (position.Y > 1)
+                MoveTo(position + up.ToVector3());
+
+            // Maybe it's better to do this in seconds instead of beats (would require to add BPM to simulation)
+            wristAngle = Math.Lerp(wristAngle, 0, (startTime - currentTime) * wristAngleRestFactor);
 
             bool isFirstCluster = true;
             foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
@@ -378,6 +357,7 @@ namespace ParityAnalyserCore.Sim
                     wristAngle = CutAngle(group.startNote, group.endNote, false, true);
                     if (Math.Abs(wristAngle) > 135f)
                     {
+                        // Bomb the rave Ex+ beat 585 dot invert gets flagged as reset
                         yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (dot) " + $"{wristAngle}", wristAngle - 180f * Math.Sign(wristAngle));
                         goto Start;
                     }
@@ -394,7 +374,7 @@ namespace ParityAnalyserCore.Sim
                 float nextAngle = endAngle - swingOffset;
                 // I don't think this will trigger anymore
                 bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
-                //Debug.Log($"Freeze: {freeze}     {startAngle} - {endAngle}");
+                
                 if (!group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
                 {
                     yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}", wristAngle);
@@ -491,10 +471,11 @@ namespace ParityAnalyserCore.Sim
                 totalForce += dirToNote * noteForce;
             }
 
-            MoveTo(transform.position.ToVector2() + totalForce);
+            MoveTo(position.ToVector2() + totalForce);
 			if (debug)
 			{
-				DebugRenderer.RenderLine(hiltPos.ToVector3(), transform.position, new(1, 1, 0), new(0, 0, 0), sync: currentCluster.aBomb);
+				DebugRenderer.RenderLine(hiltPos.ToVector3(), position, new(1, 1, 0), new(0, 0, 0), sync: currentCluster.aBomb);
+                currentCluster.Render();
 			}
 			if ((this is LeftSaber && ParityAnalyser.options.renderLeftBombDodgePoints) ||
 				(this is RightSaber && ParityAnalyser.options.renderRightBombDodgePoints))
@@ -571,16 +552,16 @@ namespace ParityAnalyserCore.Sim
 		protected abstract Vector2 restPoint { get; }
         protected Vector2 RestForce()
         {
-            Vector2 dir = (restPoint - transform.position.ToVector2()).normalized;
+            Vector2 dir = (restPoint - position.ToVector2()).normalized;
             float radius = 1.5f;
             float scaleFactor = 1f, power = 1f;
-            float magnitude = (float)Math.Min(scaleFactor * Math.Max(0, Math.Pow(Vector2.Distance(restPoint, transform.position.ToVector2()) - radius, power)), 4f);
+            float magnitude = (float)Math.Min(scaleFactor * Math.Max(0, Math.Pow(Vector2.Distance(restPoint, position.ToVector2()) - radius, power)), 4f);
             return dir * magnitude;
         }
 
         public List<SliderGroup> sliderGroups { get; private set; } = [];
 
-        private Vector3 cutOffset => transform.up * CutDistance;
+        private Vector3 cutOffset => (up * CutDistance).ToVector3();
         public static readonly float CutDistance = 0.5f;
 
         protected abstract float maxClockwiseAngle { get; }
@@ -592,11 +573,14 @@ namespace ParityAnalyserCore.Sim
 
         public float wristAngle { get; protected set; }
 
+        // Might be interesting to make this depend on eBPM
+        public readonly float wristAngleRestFactor = 0.3f;
+
         public float parityAngle => (parity.Bool() ? 180f : 0f);
 
         public static readonly float length = 2.1f;
-        public Vector3 hilt => transform.position;
-        public Vector3 tip => transform.position + (length * transform.up);
+        public Vector3 hilt => position;
+        public Vector3 tip => position + (length * up.ToVector3());
 
         public IEnumerator<ISimulationObject> GetEnumerator() => this.notes.GetEnumerator();
         public IEnumerable<(ISimulationObject, ISimulationObject)> GetPairs() => new OverlappingPairIterator<ISimulationObject>(this.notes, false);

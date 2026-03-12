@@ -10,7 +10,7 @@ namespace ParityAnalyserCore.Sim
     {
         public LeftSaber(List<BaseNote> relevantNotes, Parity start = Parity.FOREHAND) : base(relevantNotes, start)
         {
-            transform.position = restPoint.ToVector3();
+            position = restPoint.ToVector3();
         }
 
         protected override float maxClockwiseAngle => -180f;

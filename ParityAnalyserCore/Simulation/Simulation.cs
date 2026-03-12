@@ -109,7 +109,7 @@ namespace ParityAnalyserCore.Sim
 
         public Vector3 hilt => position;
         public Vector3 tip => position + (Saber.length * Vector3.Transform(Vector3.up, rotation));
-        public Quaternion rotation =>  Quaternion.CreateFromAxisAngle(Vector3.forward, Math.Deg2Rad * wristAngle) * Quaternion.CreateFromAxisAngle(Vector3.right, !parity.Bool() ? 0 : (float)Math.PI);
+        public Quaternion rotation =>  Quaternion.CreateFromAxisAngle(Vector3.forward, Math.Deg2Rad * wristAngle) * Quaternion.CreateFromAxisAngle(Vector3.right, !parity.Bool() ? 0 : -(float)Math.PI);
 
 
         public float beat => note.JsonTime;

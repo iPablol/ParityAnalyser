@@ -165,14 +165,28 @@ namespace ParityAnalyserCore
 
 				return unsignedAngle * sign;
 			}
+			public static float SignedAngleRad(Vector2 from, Vector2 to)
+			{
+				float unsignedAngle = AngleRad(from, to);
+
+				float cross = from.X * to.Y - from.Y * to.X;
+				float sign = Math.Sign(cross);
+
+				return unsignedAngle * sign;
+			}
 			public static float Angle(Vector2 from, Vector2 to)
 			{
+                return AngleRad(from, to) * Math.Rad2Deg;
+			}
+
+            public static float AngleRad(Vector2 from, Vector2 to)
+            {
 				float denominator = (float)Math.Sqrt(from.LengthSquared() * to.LengthSquared());
 				if (denominator < 1e-15f)
 					return 0f;
 
 				float dot = Math.Clamp(Vector2.Dot(from, to) / denominator, -1f, 1f);
-				return (float)Math.Acos(dot) * Math.Rad2Deg;
+                return (float)Math.Acos(dot);
 			}
 
             public Vector3 ToVector3() => new(a.X, a.Y, 0);
@@ -236,36 +250,7 @@ namespace ParityAnalyserCore
             float rad = (angleDeg - 90f) * Math.Deg2Rad;
             return new Vector2((float)Math.Cos(rad), (float)Math.Sin(rad));
         }
-
-        public static float DownAngleBetween(Vector2 a, Vector2 b)
-        {
-            float a1 = AngleFromDown(a);
-            float a2 = AngleFromDown(b);
-            return Math.DeltaAngle(a1, a2);
-        }
-
-        public static float AngleFromDown(Vector2 v)
-        {
-            float angle =(float)Math.Atan2(v.Y, v.X) * Math.Rad2Deg;
-            angle = 90f - angle;
-            if (angle < 0) angle += 360f;
-            return angle;
-        }
-
-        public static float DownAngleFromDir(Vector2 dir)
-        {
-            dir.Normalize();
-
-            // Standard atan2 gives angle with 0 at right
-            float angle = (float)Math.Atan2(dir.Y, dir.X) * Math.Rad2Deg;
-
-            // Rotate reference so 0 is down
-            angle = 90f - angle;
-
-
-
-            return angle;
-        }
+        
 
         public static string CamelCaseToWords(this string input)
         {
