@@ -263,6 +263,7 @@ namespace ParityAnalyserCore.Sim
 
             // First, try to resolve with exploration
             bool exploredSuccesfully = false;
+            float startWristAngle = wristAngle;
             foreach (SaberSnapshot reset in ExploreBombGroup(group, group.startNote.JsonTime, group.endNote.JsonTime))
             {
                 yield return reset;
@@ -272,6 +273,7 @@ namespace ParityAnalyserCore.Sim
             {
                 yield break;
             }
+            wristAngle = startWristAngle;
             // Otherwise try common resets
 
             // TODO?: resets marked by bombs to the sides of the note
@@ -298,7 +300,7 @@ namespace ParityAnalyserCore.Sim
             //bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
             
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Math.Abs(wristAngle) <= 90f && isBottomRowReset && (roll >= 180f || group.endsInDot))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Math.Abs(wristAngle) <= 90f && isBottomRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
             {
                 ParityAnalyser.Log($"Angle: {wristAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
@@ -312,7 +314,7 @@ namespace ParityAnalyserCore.Sim
                 (note) => note.RightOuterLane() && note.TopRow(),
                 ];
             bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Math.Abs(wristAngle) <= 90f && isTopRowReset && (roll >= 180f || group.endsInDot))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Math.Abs(wristAngle) <= 90f && isTopRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
             {
                 yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
                 yield break;
