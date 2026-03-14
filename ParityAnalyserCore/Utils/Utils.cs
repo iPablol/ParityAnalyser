@@ -230,6 +230,9 @@ namespace ParityAnalyserCore
 				(float)r.NextDouble()   
 			);
 		}
+
+		public static bool Upwards(this NoteCutDirection direction) => direction == NoteCutDirection.Up ||
+										direction == NoteCutDirection.UpLeft || direction == NoteCutDirection.UpRight;
 		public static float ClosestToZero(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
         public static bool IsStackOrSlider(BaseNote note1, BaseNote note2) => Math.Abs(note2.JsonTime -  note1.JsonTime) <= Simulation.sliderThreshold;
         public static bool Bool(this Parity parity) => parity == Parity.FOREHAND;

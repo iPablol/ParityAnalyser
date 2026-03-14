@@ -408,7 +408,6 @@ namespace ParityAnalyserCore.Sim
                 {
                     if (group.singleBeat)
                     {
-						// Bomb the rave Ex+ beat 214 and 234, projection is not right here
 						// Collision detection is capped at 180 degrees so if we find a higher roll we should interpolate multiple times in the same cluster
 						bool intersects = Collision.SwingPathIntersects(hilt.ToVector2(), startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster1.aBomb);
                         if (intersects)
@@ -447,6 +446,11 @@ namespace ParityAnalyserCore.Sim
 
         private void DodgeBombs(BombGroup group, BombCluster currentCluster, bool debug = false)
         {
+			// Swing on a bottom row upward note makes your hand go up, I guess
+			if (position.Y < 1f && group.singleBeat && group.startNote.BottomRow() && group.startNote.cutDirection.Upwards())
+            {
+                MoveTo(position.ToVector2() + new Vector2(0f, 1f));
+            }
             Vector2 hiltPos = hilt.ToVector2();
 
             Vector2 totalForce = Vector2.Zero;
