@@ -23,9 +23,12 @@ namespace ParityAnalyserCore
         public static bool RightInnerLane(this BaseNote note) => note.PosX == 2;
         public static bool RightOuterLane(this BaseNote note) => note.PosX == 3;
 
-        public static Vector2 BombDodgeCenter(this BaseNote bomb)
+        public static Vector2 BombDodgeCenter(this BaseNote bomb, BombGroup group)
         {
             Vector2 offset = default;
+
+            int dodgeOutward = group.All(bomb => bomb.IsInner()) ? -1 : 1;
+            
             switch (bomb.PosY)
             {
                 case 0:
@@ -57,7 +60,7 @@ namespace ParityAnalyserCore
 
                 default: break;
             }
-
+            offset.X *= dodgeOutward;
             return bomb.Position() + offset;
         }
 

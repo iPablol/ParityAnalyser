@@ -10,8 +10,14 @@ namespace ParityAnalyserCore.Sim
 {
     public abstract class Saber
     {
+        private SaberSnapshot? lastState = null;
+        public SaberSnapshot TakeSnapshot(BaseNote note, AngleRange range)
+        {
+			range.Collapse(wristAngle);
+            lastState = new(note, position, parity, range, hasReset);
 
-        public SaberSnapshot TakeSnapshot(BaseNote note) => new(note, position, parity, wristAngle, hasReset);
+            return lastState.Value;
+        }
         public List<ISimulationObject> notes { get; private set; } = [];
         public List<BombGroup> bombGroups { get; private set; } = [];
         public Saber(List<BaseNote> relevantNotes, Parity start = Parity.FOREHAND)
@@ -105,7 +111,7 @@ namespace ParityAnalyserCore.Sim
 
         public virtual IEnumerable<SaberSnapshot> FirstSwing()
         {
-            yield return TakeSnapshot(new Note(new BaseNote(0, 0, 0, 0, 0)));
+            yield return TakeSnapshot(new Note(new BaseNote(0, 0, 0, 0, 0)), 0f);
             foreach (var snapshot in Swing(null, notes.First()))
             {
                 yield return snapshot;
@@ -125,6 +131,7 @@ namespace ParityAnalyserCore.Sim
             {
                 //Debug.Log(group.ToString());
                 foreach (var reset in HandleBombGroup(group)) yield return reset;
+                
             }
             else if (nextObject is SliderGroup slider)
             {
@@ -137,7 +144,7 @@ namespace ParityAnalyserCore.Sim
                 foreach ((float angle, BaseNote nextNote) in slider.GetAngles(this))
                 {
                     MoveTowardsNote(angle, nextNote);
-                    yield return TakeSnapshot(nextNote);
+                    yield return TakeSnapshot(nextNote, angle);
                 }
                 
                 parity = parity.Other();
@@ -145,8 +152,8 @@ namespace ParityAnalyserCore.Sim
             }
             else
             {
-                RotateTowards(previousObject, nextObject);
-                yield return TakeSnapshot(nextObject.FirstNote());
+                var range = RotateTowards(previousObject, nextObject);
+                yield return TakeSnapshot(nextObject.FirstNote(), range);
                 
                     parity = parity.Other();
                 
@@ -161,10 +168,11 @@ namespace ParityAnalyserCore.Sim
             if (ParityAnalyser.options.logResets)
                 ParityAnalyser.Log($"Reset at beat {culprit.JsonTime}. Reason: {reason}");
             hasReset = true;
-            this.parity = parity;
+            //this.parity = parity;
             this.wristAngle = wristAngle;
-
-            return TakeSnapshot(culprit);
+            var snap = TakeSnapshot(culprit, wristAngle);
+            this.parity = parity;
+			return snap;
         }
 
         protected void MoveTo(Vector2 pos) { position = new Vector3(Math.Clamp(pos.X, Simulation.minSaberX, Simulation.maxSaberX), 
@@ -172,13 +180,13 @@ namespace ParityAnalyserCore.Sim
                                                                         position.Z); }
         protected void MoveTo(Vector3 pos) => MoveTo(new Vector2(pos.X, pos.Y));
 
-        protected virtual void RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
+        protected virtual AngleRange RotateTowards(ISimulationObject previousObject, ISimulationObject nextObject)
         {
             BaseNote previousNote = previousObject is BombGroup group ? group.startNote : previousObject?.LastNote() ?? null;
             BaseNote nextNote = nextObject.FirstNote();
             float desiredAngle = CutAngle(previousNote, nextNote, false);
             MoveTowardsNote(desiredAngle, nextNote);
-
+            return desiredAngle;
         }
 
         protected virtual void MoveTowardsNote(float angle, BaseNote nextNote)
@@ -207,31 +215,35 @@ namespace ParityAnalyserCore.Sim
             }
         }
 
-        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider, bool useSaberPos = false)
+        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider, bool useSaberPos = false, bool ignoreRange = false)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset when using max 315 roll)
-            float desiredAngle = DesiredAngle(nextNote.cutDirection);
-            if (prevNote != null)
+            AngleRange desiredAngle = DesiredAngle(nextNote.cutDirection);
+            float possibleAngle = desiredAngle.CutAngle(wristAngle, ignoreRange);
+            if (prevNote != null && (!ignoreRange || nextNote.IsDot()))
             {
                 bool shouldKeepAngle = prevNote.IsInlineWith(nextNote) || nextNote.IsInvert(prevNote, wristAngle + parityAngle) || nextNote.PosY == prevNote.PosY;
 				if (shouldKeepAngle && ParityAnalyser.options.debugDotState && nextNote.IsDot())
 				{
 					DebugRenderer.AddOutline(nextNote, Color.cyan);
 				}
-				if ((nextNote.IsDot() && !shouldKeepAngle) || isSlider || useSaberPos)
-                {
-                    // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
-                    Vector2 prevPos = useSaberPos ? hilt.ToVector2() : prevNote.Position();
-                    Vector2 dir = (nextNote.Position() - prevPos).normalized;
-                    dir *= -(int)parity;
-                    float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
-                    desiredAngle = signedAngle;
-                    //Debug.Log($"Beat: {nextNote.JsonTime}, Angle: {desiredAngle}, Signed: {signedAngle}");
 
-                }
+                // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
+                Vector2 prevPos = useSaberPos ? hilt.ToVector2() : prevNote.Position();
+                Vector2 dir = (nextNote.Position() - prevPos).normalized;
+                if (float.IsNaN(dir.X) || float.IsNaN(dir.Y)) return possibleAngle;
+                dir *= -(int)parity;
+                float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
+                bool useSignedAngle = desiredAngle.Contains(signedAngle) || (nextNote.IsDot() && !shouldKeepAngle) || isSlider;
+
+				return useSignedAngle ? signedAngle : possibleAngle;
+
+                
             }
-            return desiredAngle;
+            return possibleAngle;
         }
+
+        public float CutAngle(BaseNote nextNote, bool isSlider, bool useSaberPos = false, bool ignoreRange = false) => CutAngle(null, nextNote, isSlider, useSaberPos, ignoreRange);
 
         protected virtual float WristRoll(BaseNote prevNote, ISimulationObject nextObject)
         {
@@ -246,7 +258,7 @@ namespace ParityAnalyserCore.Sim
             }
             else
             {
-                angle = CutAngle(prevNote, nextObject.FirstNote(), false);
+                angle = CutAngle(prevNote, nextObject.FirstNote(), isSlider: false, ignoreRange: true);
             }
 
             return angle - wristAngle;
@@ -254,7 +266,6 @@ namespace ParityAnalyserCore.Sim
 
         private IEnumerable<SaberSnapshot> HandleBombGroup(BombGroup group)
         {
-
             if (group.endNote == null)
             {
                 // Map ends with bombs
@@ -263,7 +274,6 @@ namespace ParityAnalyserCore.Sim
 
             // First, try to resolve with exploration
             bool exploredSuccesfully = false;
-            float startWristAngle = wristAngle;
             foreach (SaberSnapshot reset in ExploreBombGroup(group, group.startNote.JsonTime, group.endNote.JsonTime))
             {
                 yield return reset;
@@ -273,7 +283,7 @@ namespace ParityAnalyserCore.Sim
             {
                 yield break;
             }
-            wristAngle = startWristAngle;
+            float noteAngle = lastState is SaberSnapshot snap && !hasReset ? snap.wristAngle.CutAngle(wristAngle, true) : wristAngle;
             // Otherwise try common resets
 
             // TODO?: resets marked by bombs to the sides of the note
@@ -288,9 +298,9 @@ namespace ParityAnalyserCore.Sim
                 ];
             bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
             
-            ParityAnalyser.Log($"Beat: {group.Time()}, Wrist: {wristAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
+            ParityAnalyser.Log($"Beat: {group.Time()}, Start: {noteAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
 
-            bool shouldResetDueToAngle = Math.Abs(wristAngle + roll) > 90f && (!RollsComfortably(roll) || Math.Abs(roll) >= 135f || Math.Abs(wristAngle + roll) >= 180f);
+            bool shouldResetDueToAngle = Math.Abs(noteAngle + roll) > 90f && (!RollsComfortably(roll) || Math.Abs(roll) >= 135f || Math.Abs(noteAngle + roll) >= 180f);
             if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Math.Abs(roll) > 30f && !group.endNote.IsDot())
             {
                 // MARENOL beat 58: left saber rolls clockwise, conflicts with B.B.K.K.B.K.K
@@ -300,9 +310,9 @@ namespace ParityAnalyserCore.Sim
             //bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
             
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Math.Abs(wristAngle) <= 90f && isBottomRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Math.Abs(noteAngle) <= 90f && isBottomRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
             {
-                ParityAnalyser.Log($"Angle: {wristAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
+                ParityAnalyser.Log($"Start: {noteAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
                 yield break;
             }
@@ -314,7 +324,7 @@ namespace ParityAnalyserCore.Sim
                 (note) => note.RightOuterLane() && note.TopRow(),
                 ];
             bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Math.Abs(wristAngle) <= 90f && isTopRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
+            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Math.Abs(noteAngle) <= 90f && isTopRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
             {
                 yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
                 yield break;
@@ -342,14 +352,16 @@ namespace ParityAnalyserCore.Sim
             float startTime = group.bombs.First().FirstNote().JsonTime;
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
-            // Simulate hit momentum if above middle row (bottom row hits are more controlled)
+            // Simulate hit momentum if above middle row with gravity (bottom row hits are more controlled)
             if (position.Y > 1)
-                MoveTo(position + up.ToVector3());
+                MoveTo(position - up.ToVector3());
 
             // Maybe it's better to do this in seconds instead of beats (would require to add BPM to simulation)
+            if (!group.singleBeat)
             wristAngle = Math.Lerp(wristAngle, 0, (startTime - currentTime) * wristAngleRestFactor);
 
             bool isFirstCluster = true;
+            float clusterSeparation = 0f;
             foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
             {
                 DodgeBombs(group, cluster1, debug);
@@ -359,7 +371,6 @@ namespace ParityAnalyserCore.Sim
                     wristAngle = CutAngle(group.startNote, group.endNote, false, true);
                     if (Math.Abs(wristAngle) > 135f)
                     {
-                        // Bomb the rave Ex+ beat 585 dot invert gets flagged as reset
                         yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (dot) " + $"{wristAngle}", wristAngle - 180f * Math.Sign(wristAngle));
                         goto Start;
                     }
@@ -369,14 +380,14 @@ namespace ParityAnalyserCore.Sim
                 float startAngle = wristAngle + swingOffset;
                 // Sound chimera beat 609: left saber is forced to have an upright angle but next note is diagonal (can be fixed by turning cluster merging off)
                 float endAngle =
-                    (hasReset ? DesiredAngle(group.endNote.cutDirection) + swingOffset :
+                    (hasReset ? CutAngle(group.endNote, group.nextObject is SliderGroup) + swingOffset :
                     wristAngle + roll + swingOffset);
 
-                // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
                 float nextAngle = endAngle - swingOffset;
-                // I don't think this will trigger anymore
+                // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
                 bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
                 
+                // I don't think this will trigger anymore
                 if (!group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
                 {
                     yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}", wristAngle);
@@ -386,17 +397,23 @@ namespace ParityAnalyserCore.Sim
 
                 float cluster1LerpAmount = (cluster1.time - startTime) / lerpFactor;
                 float cluster2LerpAmount = (cluster2.time - startTime) / lerpFactor;
-
+                // Simulate an extra bomb with roughly the same distance to the previous one to not skip the last cluster's lerp (iterator has PAIR_WITH_LAST)
+                if (cluster1.time == cluster2.time)
+                {
+                    cluster2LerpAmount = (cluster2.time + (clusterSeparation * 1.1f) - startTime) / lerpFactor; 
+                }
+                clusterSeparation = cluster2.time - cluster1.time;
                 // TODO: fix bombsage single bomb bullshit (example: MARENOL at the beginning)
                 foreach (OrientedRect hitbox in cluster1.GetHitbox())
                 {
                     if (group.singleBeat)
                     {
-                        // Collision detection is capped at 180 degrees so if we find a higher roll we should interpolate multiple times in the same cluster
-                        bool intersects = Collision.SwingPathIntersects(hilt.ToVector2(), startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster1.aBomb);
+						// Bomb the rave Ex+ beat 214 and 234, projection is not right here
+						// Collision detection is capped at 180 degrees so if we find a higher roll we should interpolate multiple times in the same cluster
+						bool intersects = Collision.SwingPathIntersects(hilt.ToVector2(), startAngle, wristAngle + roll + swingOffset, hitbox, debug, cluster1.aBomb);
                         if (intersects)
                         {
-                            yield return Reset(cluster1.aBomb, parity.Other(), "Bomb projection intersects");
+                            yield return Reset(cluster1.aBomb, parity.Other(), "Bomb projection intersects", wristAngle);
                             break;
                         }
                     }
@@ -405,7 +422,7 @@ namespace ParityAnalyserCore.Sim
                         bool intersects = Collision.SwingPathIntersects(hilt.ToVector2(), startAngle, Math.Lerp(startAngle, endAngle, cluster2LerpAmount), hitbox, debug, cluster1.aBomb);
                         if (intersects)
                         {
-                            yield return Reset(cluster1.aBomb, parity.Other(), "Bomb projection intersects");
+                            yield return Reset(cluster1.aBomb, parity.Other(), "Bomb projection intersects", wristAngle);
                             break;
                         }
                     }
@@ -439,7 +456,7 @@ namespace ParityAnalyserCore.Sim
             foreach (BaseNote bomb in group.After(currentCluster.time))
             {
                 float effectRadius = 0.6f;
-                Vector2 bombPos = bomb.BombDodgeCenter();
+                Vector2 bombPos = bomb.BombDodgeCenter(group);
                 float timeDistance = bomb.JsonTime - currentCluster.time;
                 float projectionDistance = Vector2.Distance(bombPos, hiltPos);
 
@@ -484,12 +501,12 @@ namespace ParityAnalyserCore.Sim
 			{
 				foreach (BaseNote bomb in group.bombs)
 				{
-					DebugRenderer.RenderSphere(bomb.BombDodgeCenter().ToVector3(), 0.2f, new (1, 0, 0), bomb);
+					DebugRenderer.RenderSphere(bomb.BombDodgeCenter(group).ToVector3(), 0.2f, new (1, 0, 0), bomb);
 				}
-
 			}
 		}
 
+        // TODO: insert bombs that are in the same beat as a note into a group before and a group after the note
         public virtual IEnumerable<ISimulationObject> ExtractBombGroups(List<ISimulationObject> notes)
         {
             // TODO: maybe make a bomb group if map starts with bombs
@@ -576,7 +593,7 @@ namespace ParityAnalyserCore.Sim
         public float wristAngle { get; protected set; }
 
         // Might be interesting to make this depend on eBPM
-        public readonly float wristAngleRestFactor = 0.3f;
+        public readonly float wristAngleRestFactor = 1.5f;
 
         public float parityAngle => (parity.Bool() ? 180f : 0f);
 
@@ -589,6 +606,6 @@ namespace ParityAnalyserCore.Sim
 
         public static implicit operator List<ISimulationObject>(Saber saber) => saber.notes;
 
-        protected abstract float DesiredAngle(NoteCutDirection dir);
+        protected abstract AngleRange DesiredAngle(NoteCutDirection dir);
     }
 }

@@ -20,7 +20,7 @@ namespace ParityAnalyserCore.Sim
 
         protected override Vector2 restPoint { get; } = new Vector2(1f, 1f);
 
-        protected override float DesiredAngle(NoteCutDirection dir) => this.parity switch
+        protected override AngleRange DesiredAngle(NoteCutDirection dir) => this.parity switch
         {
             Parity.FOREHAND => dir switch
             {

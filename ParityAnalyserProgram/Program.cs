@@ -1,5 +1,6 @@
 ﻿
 global using System.Numerics;
+using NativeFileDialog.Extended;
 using ParityAnalyserCore.Sim;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -10,7 +11,11 @@ namespace ParityAnalyserProgram
 		static void Main(string[] args)
 		{
 			string? path = args.FirstOrDefault();
-			if (path is not null && File.Exists(path))
+			if (path is null)
+			{
+				path = NFD.OpenDialog("");
+			}
+			if (path is not null && File.Exists(path) && path.EndsWith(".dat"))
 			{
 				Simulation sim = new ([.. GetMapNotes(path)]);
 				sim.Run();
@@ -33,6 +38,7 @@ namespace ParityAnalyserProgram
 			{
 				string key = jsonProperty.Name;
 				JsonElement node = jsonProperty.Value;
+				// V3
 				if (key == "colorNotes")
 				{
 					foreach (JsonElement el in node.EnumerateArray())
@@ -51,6 +57,17 @@ namespace ParityAnalyserProgram
 													type: (int)NoteType.Bomb,
 													cutDirection: (int)NoteCutDirection.None,
 													posX: el.GetProperty("x").GetInt32(), posY: el.GetProperty("y").GetInt32());
+					}
+				}
+				// V2
+				else if (key == "_notes")
+				{
+					foreach (JsonElement el in node.EnumerateArray())
+					{
+						yield return new BaseNote(jsonTime: el.GetProperty("_time").GetSingle(),
+													type: el.GetProperty("_type").GetInt32(),
+													cutDirection: el.GetProperty("_cutDirection").GetInt32(),
+													posX: el.GetProperty("_lineIndex").GetInt32(), posY: el.GetProperty("_lineLayer").GetInt32());
 					}
 				}
 			}

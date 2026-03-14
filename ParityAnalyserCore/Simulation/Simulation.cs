@@ -104,7 +104,7 @@ namespace ParityAnalyserCore.Sim
         
     }
 
-    public record struct SaberSnapshot(BaseNote note, Vector3 position, Parity parity, float wristAngle, bool reset = false)
+    public record struct SaberSnapshot(BaseNote note, Vector3 position, Parity parity, AngleRange wristAngle, bool reset = false)
     {
 
         public Vector3 hilt => position;

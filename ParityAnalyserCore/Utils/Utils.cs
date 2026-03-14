@@ -216,6 +216,8 @@ namespace ParityAnalyserCore
 
             public static float Clamp(float value, float min, float max) => Math.Min(Math.Max(min, value), max);
 
+			public static float MinAbs(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
+
 		}
 		public static Vector2 gridCenter = new Vector2(1.5f, 1f);
 
@@ -249,23 +251,6 @@ namespace ParityAnalyserCore
         {
             float rad = (angleDeg - 90f) * Math.Deg2Rad;
             return new Vector2((float)Math.Cos(rad), (float)Math.Sin(rad));
-        }
-        
-
-        public static string CamelCaseToWords(this string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-                return input;
-
-            // Insert space before capital letters that follow lowercase letters
-            var result = Regex.Replace(
-                input,
-                @"(?<=[a-z])(?=[A-Z])",
-                " "
-            );
-
-            // Capitalize first letter
-            return char.ToUpper(result[0]) + result.Substring(1);
         }
 
         
