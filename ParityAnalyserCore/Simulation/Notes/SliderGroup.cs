@@ -70,6 +70,7 @@ namespace ParityAnalyserCore.Sim
             Vector2 pos = lastObject.FirstNote().Position();
             if (isFullyHorizontal)
             {
+                // Change this to try to do the most comfortable thing
                 float to90 = Math.Abs(Math.DeltaAngle(wristAngle, 90f));
                 float toNeg90 = Math.Abs(Math.DeltaAngle(wristAngle, -90f));
                 bool closerTo90 = to90 < toNeg90;
@@ -126,8 +127,7 @@ namespace ParityAnalyserCore.Sim
             }
             else
             {
-                bool down = slider.Any(note => note.cutDirection == NoteCutDirection.Down
-                || note.cutDirection == NoteCutDirection.DownRight || note.cutDirection == NoteCutDirection.DownLeft);
+                bool down = slider.Any(note => note.cutDirection.Downwards());
                 if (down)
                 {
                     return StackOrder.TopToBottom;

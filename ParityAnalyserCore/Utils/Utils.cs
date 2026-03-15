@@ -162,7 +162,7 @@ namespace ParityAnalyserCore
 
 				float cross = from.X * to.Y - from.Y * to.X;
 				float sign = Math.Sign(cross);
-
+				if (sign == 0) sign = 1; // buh
 				return unsignedAngle * sign;
 			}
 			public static float SignedAngleRad(Vector2 from, Vector2 to)
@@ -233,6 +233,8 @@ namespace ParityAnalyserCore
 
 		public static bool Upwards(this NoteCutDirection direction) => direction == NoteCutDirection.Up ||
 										direction == NoteCutDirection.UpLeft || direction == NoteCutDirection.UpRight;
+		public static bool Downwards(this NoteCutDirection direction) => direction == NoteCutDirection.Down ||
+										direction == NoteCutDirection.DownLeft || direction == NoteCutDirection.DownRight;
 		public static float ClosestToZero(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
         public static bool IsStackOrSlider(BaseNote note1, BaseNote note2) => Math.Abs(note2.JsonTime -  note1.JsonTime) <= Simulation.sliderThreshold;
         public static bool Bool(this Parity parity) => parity == Parity.FOREHAND;
