@@ -549,7 +549,16 @@ namespace ParityAnalyserCore.Sim
                         contained = true; break;
                     }
                 }
-                negSpace += DodgeForce(negSpace) * 0.5f;
+                Vector2 force = DodgeForce(negSpace);
+                if (force.Length().NearlyEqualTo(0, 0.11f) && contained)
+                {
+                    negSpace = new Vector2(0f, this is RightSaber ? 3f : 0f); // prevent infinite loop (default to bottom + saber's side)
+                    break;
+                }
+
+
+                negSpace += force * 0.5f;
+
             }
             while (contained);
 
