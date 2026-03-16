@@ -299,8 +299,9 @@ namespace ParityAnalyserCore.Sim
             bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
             
             ParityAnalyser.Log($"Beat: {group.Time()}, Start: {noteAngle}, roll: {roll}, comfortable: {RollsComfortably(roll)}");
+            float nextNoteAngle = roll + wristAngle;
 
-            bool shouldResetDueToAngle = Math.Abs(noteAngle + roll) > 90f && (!RollsComfortably(roll) || Math.Abs(roll) >= 135f || Math.Abs(noteAngle + roll) >= 180f);
+            bool shouldResetDueToAngle = Math.Abs(nextNoteAngle) > 90f && (!RollsComfortably(roll) || Math.Abs(roll) >= 135f || Math.Abs(noteAngle + roll) >= 180f);
             if (shouldResetDueToAngle && /*don't reset for dots that cause very little roll*/ Math.Abs(roll) > 30f && !group.endNote.IsDot())
             {
                 // MARENOL beat 58: left saber rolls clockwise, conflicts with B.B.K.K.B.K.K
@@ -368,6 +369,8 @@ namespace ParityAnalyserCore.Sim
                 Start:
                 if (group.endsInDot && !group.singleBeat)
                 {
+                    // 666 Ex+ beat 210, should be palmup
+                    float prevAngle = wristAngle;
                     wristAngle = CutAngle(group.startNote, group.endNote, false, true);
                     if (Math.Abs(wristAngle) > 135f)
                     {
@@ -444,6 +447,7 @@ namespace ParityAnalyserCore.Sim
             yield break;
         }
 
+        // Pink diamond beat 239, dodges into bombs
         private void DodgeBombs(BombGroup group, BombCluster currentCluster, bool debug = false)
         {
 			// Swing on a bottom row upward note makes your hand go up, I guess
