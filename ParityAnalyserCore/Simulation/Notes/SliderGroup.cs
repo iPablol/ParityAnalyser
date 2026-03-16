@@ -67,7 +67,7 @@ namespace ParityAnalyserCore.Sim
         public SliderGroup OrderFullDotStack(ISimulationObject lastObject, Saber saber)
         {
             float wristAngle = saber.wristAngle;
-            Vector2 pos = lastObject.FirstNote().Position();
+            Vector2 pos = lastObject.FirstNote().Position;
             if (isFullyHorizontal)
             {
                 // Change this to try to do the most comfortable thing

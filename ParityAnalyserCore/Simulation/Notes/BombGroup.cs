@@ -36,7 +36,6 @@ namespace ParityAnalyserCore.Sim
         public bool All(BombCondition predicate) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).All(predicate);
         public bool Any(BombCondition predicate) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).Any(predicate);
 
-
         public IEnumerable<BaseNote> After(float jsonTime) => this.Where(bomb => bomb.JsonTime >= jsonTime);
         public IEnumerable<BaseNote> Where(BombCondition condition) => bombs.ConvertAll<BaseNote>(bomb => bomb.Value).Where(condition);
 
@@ -64,7 +63,7 @@ namespace ParityAnalyserCore.Sim
                     if (cluster2.time -  cluster1.time <= clusterMergeThreshold)
                     {
                         yield return new BombCluster((from bomb in cluster1.notes.Concat(cluster2.notes)
-                                                      group bomb by bomb.FirstNote().Position() into g
+                                                      group bomb by bomb.FirstNote().Position into g
                                                       select g.First()).ToList(), cluster1.time);
                     }
                     else

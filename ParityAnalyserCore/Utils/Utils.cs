@@ -219,7 +219,6 @@ namespace ParityAnalyserCore
 			public static float MinAbs(float a, float b) => Math.Abs(a) < Math.Abs(b) ? a : b;
 
 		}
-		public static Vector2 gridCenter = new Vector2(1.5f, 1f);
 
 		public static Vector3 RandomColor()
 		{

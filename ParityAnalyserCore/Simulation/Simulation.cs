@@ -8,7 +8,9 @@ namespace ParityAnalyserCore.Sim
 {
     public class Simulation
     {
-        public static readonly float bombRadius = 0.48f;
+		public static Vector2 gridCenter = new (1.5f, 1f);
+
+		public static readonly float bombRadius = 0.48f;
         public static readonly float sliderThreshold = 1 / 11.5f; // Thanks yabje for those 1/12 sliders
 
 

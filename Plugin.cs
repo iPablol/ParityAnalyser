@@ -117,7 +117,7 @@ namespace ParityAnalyser
 		        renderRightBombGroups     =   options.renderRightBombGroups,
 
 		        debugLeftBombCollisions   =   options.debugLeftBombCollisions,
-		        renderLeftBombDodgePoints =   options.renderRightBombDodgePoints,
+		        renderLeftBombDodgePoints =   options.renderLeftBombDodgePoints,
 
 		        debugRightBombCollisions  =   options.debugRightBombCollisions,
 		        renderRightBombDodgePoints=   options.renderRightBombDodgePoints,

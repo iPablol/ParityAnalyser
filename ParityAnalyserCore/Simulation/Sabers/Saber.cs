@@ -207,15 +207,15 @@ namespace ParityAnalyserCore.Sim
             
             if (nextNote.cutDirection != NoteCutDirection.Any)
             {
-                MoveTo(nextNote.Position() - cutOffset.ToVector2());
+                MoveTo(nextNote.Position - cutOffset.ToVector2());
             }
             else
             {
-                MoveTo(nextNote.Position());
+                MoveTo(nextNote.Position);
             }
         }
 
-        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider, bool useSaberPos = false, bool ignoreRange = false)
+        public virtual float CutAngle(BaseNote prevNote, BaseNote nextNote, bool isSlider, bool ignoreRange = false)
         {
             // IMPORTANT: check Kyuukou dot at 160 (causes reset when using max 315 roll)
             AngleRange desiredAngle = DesiredAngle(nextNote.cutDirection);
@@ -229,8 +229,8 @@ namespace ParityAnalyserCore.Sim
 				}
 
                 // TODO: maybe check inlines (example: abstruse dilemma) and inverts (example: Bad apple (Bitz) )
-                Vector2 prevPos = useSaberPos ? hilt.ToVector2() : prevNote.Position();
-                Vector2 dir = (nextNote.Position() - prevPos).normalized;
+                Vector2 prevPos = prevNote.Position;
+                Vector2 dir = (nextNote.Position - prevPos).normalized;
                 if (float.IsNaN(dir.X) || float.IsNaN(dir.Y)) return possibleAngle;
                 dir *= -(int)parity;
                 float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
@@ -243,7 +243,18 @@ namespace ParityAnalyserCore.Sim
             return possibleAngle;
         }
 
-        public float CutAngle(BaseNote nextNote, bool isSlider, bool useSaberPos = false, bool ignoreRange = false) => CutAngle(null, nextNote, isSlider, useSaberPos, ignoreRange);
+        public float CutAngleFromSaberPos(BaseNote nextNote)
+        {
+			Vector2 prevPos = hilt.ToVector2();
+			Vector2 dir = (nextNote.Position - prevPos).normalized;
+			if (float.IsNaN(dir.X) || float.IsNaN(dir.Y)) return wristAngle;
+			dir *= -(int)parity;
+			float signedAngle = Vector2.SignedAngle(Vector2.down, dir);
+
+			return signedAngle;
+		}
+
+        public float CutAngle(BaseNote nextNote, bool isSlider, bool ignoreRange = false) => CutAngle(null, nextNote, isSlider, ignoreRange);
 
         protected virtual float WristRoll(BaseNote prevNote, ISimulationObject nextObject)
         {
@@ -291,10 +302,10 @@ namespace ParityAnalyserCore.Sim
             float roll = WristRoll(group.startNote, group.nextObject);
 
             List<BombCondition> bottomRowReset = [
-                (note) => note.LeftOuterLane() && note.BottomRow(),
-                (note) => note.LeftInnerLane() && note.BottomRow(),
-                (note) => note.RightInnerLane() && note.BottomRow(),
-                (note) => note.RightOuterLane() && note.BottomRow(),
+                (note) => note.LeftOuterLane && note.BottomRow,
+                (note) => note.LeftInnerLane && note.BottomRow,
+                (note) => note.RightInnerLane && note.BottomRow,
+                (note) => note.RightOuterLane && note.BottomRow,
                 ];
             bool isBottomRowReset = group.Satisfy(bottomRowReset).Count() >= 3 /*group.Satisfies(bottomRowReset)*/;
             
@@ -311,7 +322,7 @@ namespace ParityAnalyserCore.Sim
             //bool shouldResetDueToRoll = Mathf.Abs(roll) >= 180f;
 
             
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.TopRow())) && parity == Parity.BACKHAND && Math.Abs(noteAngle) <= 90f && isBottomRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
+            if ((!group.Any(bomb => bomb.MiddleRow || bomb.TopRow)) && parity == Parity.BACKHAND && Math.Abs(noteAngle) <= 90f && isBottomRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
             {
                 ParityAnalyser.Log($"Start: {noteAngle} - Roll: {roll} - Comfortable: {RollsComfortably(roll)}");
                 yield return Reset(group.bombs[0], Parity.FOREHAND, "Bottom row reset");
@@ -319,13 +330,13 @@ namespace ParityAnalyserCore.Sim
             }
 
             List<BombCondition> topRowReset = [
-                (note) => note.LeftOuterLane() && note.TopRow(),
-                (note) => note.LeftInnerLane() && note.TopRow(),
-                (note) => note.RightInnerLane() && note.TopRow(),
-                (note) => note.RightOuterLane() && note.TopRow(),
+                (note) => note.LeftOuterLane && note.TopRow,
+                (note) => note.LeftInnerLane && note.TopRow,
+                (note) => note.RightInnerLane && note.TopRow,
+                (note) => note.RightOuterLane && note.TopRow,
                 ];
             bool isTopRowReset = group.Satisfy(topRowReset).Count() >= 3;
-            if ((!group.Any(bomb => bomb.MiddleRow() || bomb.BottomRow())) && parity == Parity.FOREHAND && Math.Abs(noteAngle) <= 90f && isTopRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
+            if ((!group.Any(bomb => bomb.MiddleRow || bomb.BottomRow)) && parity == Parity.FOREHAND && Math.Abs(noteAngle) <= 90f && isTopRowReset && (Math.Abs(roll) >= 180f || group.endsInDot))
             {
                 yield return Reset(group.bombs[0], Parity.BACKHAND, "Top row reset");
                 yield break;
@@ -353,30 +364,42 @@ namespace ParityAnalyserCore.Sim
             float startTime = group.bombs.First().FirstNote().JsonTime;
             bool debug = (this is LeftSaber && ParityAnalyser.options.debugLeftBombCollisions) ||
                         (this is RightSaber && ParityAnalyser.options.debugRightBombCollisions);
-            // Simulate hit momentum if above middle row with gravity (bottom row hits are more controlled)
-            if (position.Y > 1)
-                MoveTo(position - up.ToVector3());
+            // Simulate hit momentum
+            //if (position.Y > 1)
+            //    MoveTo(position - up.ToVector3());
 
-            // Maybe it's better to do this in seconds instead of beats (would require to add BPM to simulation)
             if (!group.singleBeat)
+            {
+                MoveTo(position - 2f * cutOffset);
+
+            }
+			else // Swing on a bottom row upward note makes your hand go up, I guess
+			if (position.Y < 1f && group.singleBeat && group.startNote.BottomRow && group.startNote.cutDirection.Upwards())
+			{
+				MoveTo(position.ToVector2() + new Vector2(0f, 1f));
+			}
+
+			// Maybe it's better to do this in seconds instead of beats (would require to add BPM to simulation)
+			if (!group.singleBeat)
             wristAngle = Math.Lerp(wristAngle, 0, (startTime - currentTime) * wristAngleRestFactor);
 
             bool isFirstCluster = true;
             float clusterSeparation = 0f;
             foreach ((BombCluster cluster1, BombCluster cluster2) in group.GetClusterPairs(ParityAnalyser.options.bombClusterMerging))
             {
-                DodgeBombs(group, cluster1, debug);
+                if (!group.singleBeat)
+                    DodgeBombs(group, cluster1, debug);
                 Start:
                 if (group.endsInDot && !group.singleBeat)
                 {
-                    // 666 Ex+ beat 210, should be palmup
-                    float prevAngle = wristAngle;
-                    wristAngle = CutAngle(group.startNote, group.endNote, false, true);
-                    if (Math.Abs(wristAngle) > 135f)
-                    {
-                        yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (dot) " + $"{wristAngle}", wristAngle - 180f * Math.Sign(wristAngle));
-                        goto Start;
-                    }
+                    //// 666 Ex+ beat 210, should be palmup
+                    //float prevAngle = wristAngle;
+                    wristAngle = CutAngleFromSaberPos(group.endNote);
+                    //if (Math.Abs(wristAngle) > 135f)
+                    //{
+                    //    yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (dot) " + $"{wristAngle}", wristAngle - 180f * Math.Sign(wristAngle));
+                    //    goto Start;
+                    //}
                 }
                 float roll = WristRoll(group.startNote, group.nextObject);
                 float swingOffset = parityAngle;
@@ -390,8 +413,7 @@ namespace ParityAnalyserCore.Sim
                 // Wrist angle exceeds natural rotation limits or why would you reset to then rotate your wrist past 90 degrees (second condition was causing an infinite loop)
                 bool unnatural = (nextAngle > maxCCAngle || nextAngle < maxClockwiseAngle) || (hasReset && Math.Abs(nextAngle) > 90f);
                 
-                // I don't think this will trigger anymore
-                if (!group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
+                if (!group.endsInDot && !group.singleBeat && unnatural && nextAngle != wristAngle && !hasReset)
                 {
                     yield return Reset(cluster1.aBomb, parity.Other(), "Unnatural wrist roll (bomb exploration) " + $"{wristAngle} - {endAngle - swingOffset}", wristAngle);
                     goto Start;
@@ -447,69 +469,120 @@ namespace ParityAnalyserCore.Sim
             yield break;
         }
 
-        // Pink diamond beat 239, dodges into bombs
         private void DodgeBombs(BombGroup group, BombCluster currentCluster, bool debug = false)
         {
-			// Swing on a bottom row upward note makes your hand go up, I guess
-			if (position.Y < 1f && group.singleBeat && group.startNote.BottomRow() && group.startNote.cutDirection.Upwards())
+            Vector2 DodgeForce(Vector2 position)
             {
-                MoveTo(position.ToVector2() + new Vector2(0f, 1f));
-            }
-            Vector2 hiltPos = hilt.ToVector2();
+				Vector2 totalForce = Vector2.Zero;
 
-            Vector2 totalForce = Vector2.Zero;
+				int count = 0;
+				float countThreshold = 0.2f;
+				foreach (BaseNote bomb in group.After(currentCluster.time))
+				{
+					float effectRadius = 0.6f;
+					Vector2 bombPos = bomb.BombDodgeCenter(group);
+					float timeDistance = bomb.JsonTime - currentCluster.time;
+					float projectionDistance = Vector2.Distance(bombPos, position);
 
-            int count = 0;
-            float countThreshold = 0.2f;
-            foreach (BaseNote bomb in group.After(currentCluster.time))
+					Vector2 dir = (position - bombPos).normalized;
+
+					float globalFactor = 2f;
+					float timeScaleFactor = 0.87f, distanceScaleFactor = 1f;
+
+					float timeSpread = 0.3f, timeShift = 0.15f;
+					float timeMagnitude = (float)Math.Exp(-1f * Math.Pow((timeDistance - timeShift) / timeSpread, 2));
+
+					float distanceMagnitude = (float)Math.Exp(-projectionDistance * projectionDistance) / effectRadius;
+
+					float magnitude = globalFactor * (timeScaleFactor * timeMagnitude * distanceScaleFactor * distanceMagnitude);
+
+					totalForce += dir * magnitude;
+					if (magnitude >= countThreshold) count++;
+				}
+				if (count == 0) count++;
+				totalForce /= count;
+                //totalForce += RestForce();
+
+                totalForce += NoteForce(position);
+				
+				return totalForce;
+			}
+
+            Vector2 NoteForce(Vector2 position)
             {
-                float effectRadius = 0.6f;
-                Vector2 bombPos = bomb.BombDodgeCenter(group);
-                float timeDistance = bomb.JsonTime - currentCluster.time;
-                float projectionDistance = Vector2.Distance(bombPos, hiltPos);
+                Vector2 totalForce = Vector2.Zero;
+				// TODO: tweak force (example: MARENOL beat 42 and da mama drop)
+				Vector2 dirToNote = (group.endNote.Position - position).normalized;
+				float groupTime = group.endNote.JsonTime - group.startNote.JsonTime;
+				float timeDistanceToNote = group.endNote.JsonTime - currentCluster.time,
+					distanceToNote = Vector2.Distance(group.endNote.Position, position),
+					distanceDamp = 4f / groupTime, // Move more for longer bomb groups and viceversa
+					noteForce = (float)Math.Clamp(-(float)Math.Log(timeDistanceToNote) * (distanceToNote / distanceDamp), 0, distanceToNote);
+				if (!group.endsInDot && distanceToNote < 1f)
+				{
+					totalForce += dirToNote * noteForce;
+				}
+                return totalForce;
+			}
+            
 
-                Vector2 dir = (hiltPos - bombPos).normalized;
 
-                float globalFactor = 2f;
-                float timeScaleFactor = 0.87f, distanceScaleFactor = 1f;
 
-                float timeSpread = 0.3f, timeShift = 0.15f;
-                float timeMagnitude = (float)Math.Exp(-1f * Math.Pow((timeDistance - timeShift) / timeSpread, 2));
+            float groupTime = group.endNote.JsonTime - group.startNote.JsonTime;
+			float timeDistanceToNote = group.endNote.JsonTime - currentCluster.time;
 
-                float distanceMagnitude = (float)Math.Exp(-projectionDistance * projectionDistance) / effectRadius;
+			Vector2 negSpace = currentCluster.NegativeSpaceCenter();
+			float negSpaceScale = timeDistanceToNote / groupTime;
+            // Push the negative space center to dodge the bombs
 
-                float magnitude = globalFactor * (timeScaleFactor * timeMagnitude * distanceScaleFactor * distanceMagnitude);
+            // Slight bias towards swing direction to avoid jumping from one side to another when center gets placed near the middle and there are bombs there
+            negSpace += Vector2.down * 0.15f * (parity.Bool() ? -1f : 1f);
 
-                totalForce += dir * magnitude;
-                if (magnitude >= countThreshold) count++;
-            }
-            if (count == 0) count++;
-            totalForce /= count;
-            //totalForce += RestForce();
-
-            // TODO: tweak force (example: MARENOL beat 42 and da mama drop)
-            Vector2 dirToNote = (group.endNote.Position() - hiltPos).normalized;
-            float timeDistanceToNote = group.endNote.JsonTime - currentCluster.time,
-                distanceToNote = Vector2.Distance(group.endNote.Position(), hiltPos),
-                distanceDamp = 4f / (group.endNote.JsonTime - group.startNote.JsonTime), // Move more for longer bomb groups and viceversa
-                noteForce = (float)Math.Clamp(-(float)Math.Log(timeDistanceToNote) * (distanceToNote / distanceDamp), 0, distanceToNote);
-            if (!group.endsInDot && distanceToNote < 1f)
+            bool contained = false;
+            do
             {
-                totalForce += dirToNote * noteForce;
+                contained = false;
+                foreach (var hitbox in currentCluster.GetHitbox())
+                {
+                    if (hitbox.Contains(negSpace))
+                    {
+                        contained = true; break;
+                    }
+                }
+                negSpace += DodgeForce(negSpace) * 0.5f;
+            }
+            while (contained);
+
+			bool debugCenter = this is LeftSaber && ParityAnalyser.options.renderLeftBombDodgePoints || this is RightSaber && ParityAnalyser.options.renderRightBombDodgePoints;
+			if (debugCenter) DebugRenderer.RenderSphere(negSpace.ToVector3(), 0.1f, currentCluster.notes.Any(note => note.Value.IsMiddle) ? Color.yellow : Color.green, sync: currentCluster.aBomb);
+
+            Vector2 negSpaceDist = negSpace - position.ToVector2();
+			float maxNegativeSpaceForce = currentCluster.notes.Any(note => note.Value.IsMiddle) ? negSpaceDist.Length() : 0.4f,
+				negativeSpaceForce = Math.Clamp((float)Math.Pow(negSpaceDist.Length(), 2) * negSpaceScale, 0, maxNegativeSpaceForce);
+
+			Vector2 hiltPos = hilt.ToVector2();
+            Vector2 totalForce = DodgeForce(hiltPos);
+
+            float closestBombDist = group.After(currentCluster.time).ToList().ConvertAll((b) => (new Vector3(b.PosX, b.PosY, b.JsonTime) - new Vector3(position.X, position.Y, currentCluster.time)).Length())
+                .OrderBy(x => x).FirstOrDefault();
+
+            if (!group.singleBeat || closestBombDist < 2f)
+            {
+                totalForce += negSpaceDist.normalized * negativeSpaceForce;
             }
 
-            MoveTo(position.ToVector2() + totalForce);
+
+			MoveTo(position.ToVector2() + totalForce);
 			if (debug)
 			{
-				DebugRenderer.RenderLine(hiltPos.ToVector3(), position, new(1, 1, 0), new(0, 0, 0), sync: currentCluster.aBomb);
+				DebugRenderer.RenderLine(hiltPos.ToVector3(), position, Color.yellow, Color.black, sync: currentCluster.aBomb);
                 currentCluster.Render();
 			}
-			if ((this is LeftSaber && ParityAnalyser.options.renderLeftBombDodgePoints) ||
-				(this is RightSaber && ParityAnalyser.options.renderRightBombDodgePoints))
+			if (debugCenter)
 			{
 				foreach (BaseNote bomb in group.bombs)
 				{
-					DebugRenderer.RenderSphere(bomb.BombDodgeCenter(group).ToVector3(), 0.2f, new (1, 0, 0), bomb);
+					DebugRenderer.RenderSphere(bomb.BombDodgeCenter(group).ToVector3(), 0.2f, Color.red, bomb);
 				}
 			}
 		}

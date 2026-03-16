@@ -58,7 +58,6 @@
     <Compile Include="Simulation\Simulation.cs" />
     <Compile Include="Utils\Collision.cs" />
     <Compile Include="Utils\Color.cs" />
-    <Compile Include="Utils\Notes.cs" />
     <Compile Include="Utils\OrientedRect.cs" />
     <Compile Include="Utils\RunningStats.cs" />
     <Compile Include="Utils\Utils.cs" />

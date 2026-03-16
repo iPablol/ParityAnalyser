@@ -17,6 +17,35 @@ namespace ParityAnalyserCore.Sim
             }
         }
 
+        public Vector2 NegativeSpaceCenter()
+        {
+            // Maybe bias towards saber's side (e.g.: right side for right saber)
+			Vector2 sum = Vector2.Zero;
+			float weightSum = 0f;
+
+			for (int x = 0; x < 4; x++)
+			{
+				for (int y = 0; y < 3; y++)
+				{
+					if (!notes.Any(bomb => bomb.Value.PosX == x && bomb.Value.PosY == y))
+					{
+                        int adjacentBombs = notes.Count(bomb =>
+                            Math.Abs(bomb.Value.PosX - x) == 1 ||
+                            Math.Abs(bomb.Value.PosY - y) == 1);
+						float weight = 1f / (float)Math.Pow(1f + adjacentBombs, 3.5f);
+
+						Vector2 pos = new (x, y);
+
+						sum += pos * weight;
+						weightSum += weight;
+					}
+				}
+			}
+
+			Vector2 center = sum / weightSum;
+			return center;
+		}
+
         public IEnumerable<OrientedRect> GetHitbox()
         {
             foreach (OrientedRect rect in AddDiagonalConnectors(GetAxisHitbox().ToList())) yield return rect;
